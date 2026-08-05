@@ -1,5 +1,5 @@
 // Vertical reel drum markup and transform-based spin animation — checklist §5.2.
-// Updated: 2026-08-05 — fixed 2.6s spin sequence timing from sound module.
+// Updated: 2026-08-05 — center marker triangles + brass-framed drum viewport.
 
 import { REVEAL_MODES } from '../data/constants.js';
 import { SPIN_SEQUENCE_MS } from './sound.js';
@@ -117,6 +117,15 @@ function renderDrumCell(label, variant = 'preview', options = {}) {
   return `<div class="reel-drum__cell reel-drum__cell--${variant}${forcedClass}">${escapeHtml(label)}</div>`;
 }
 
+function renderDrumMarker() {
+  return `
+    <div class="reel-drum__marker" aria-hidden="true">
+      <span class="reel-drum__marker-triangle reel-drum__marker-triangle--left"></span>
+      <span class="reel-drum__marker-triangle reel-drum__marker-triangle--right"></span>
+    </div>
+  `;
+}
+
 /**
  * @param {import('../data/types.js').Slot} slot
  * @param {import('./reveal.js').ReelDisplayState} display
@@ -142,7 +151,7 @@ export function renderReelDrumViewport(slot, display, spinning, spinTargetLabel)
           <div class="reel-drum__strip" data-reel-strip="${slot.id}" ${isGated ? 'aria-hidden="true"' : ''}>
             ${cells}
           </div>
-          <div class="reel-drum__marker" aria-hidden="true"></div>
+          ${renderDrumMarker()}
         </div>
       </div>
     `;
@@ -159,7 +168,7 @@ export function renderReelDrumViewport(slot, display, spinning, spinTargetLabel)
           ${renderDrumCell(cells.center, centerVariant, { forced: display.forced })}
           ${renderDrumCell(cells.next, 'preview')}
         </div>
-        <div class="reel-drum__marker" aria-hidden="true"></div>
+        ${renderDrumMarker()}
       </div>
     </div>
   `;

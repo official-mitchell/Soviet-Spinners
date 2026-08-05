@@ -1,5 +1,5 @@
 // Application bootstrap and event wiring — Slot Management UI §2–§7.
-// Updated: 2026-08-05 — mechanical handle wiring + sequenced spin sounds.
+// Updated: 2026-08-05 — sync reel header titles while editing slot names.
 
 import { countDrawableSlots } from '../data/spin.js';
 import {
@@ -382,6 +382,19 @@ async function handleDeleteSlot(slotId) {
  * @param {string} slotId
  * @param {string} title
  */
+function syncReelHeaderTitle(slotId, title) {
+  const headerTitle = document.querySelector(
+    `.reel-card[data-slot-id="${slotId}"] .reel-card__header-title`,
+  );
+  if (headerTitle) {
+    headerTitle.textContent = title;
+  }
+}
+
+/**
+ * @param {string} slotId
+ * @param {string} title
+ */
 function handleSlotTitleChange(slotId, title) {
   if (isSpinLocked()) {
     return;
@@ -394,6 +407,7 @@ function handleSlotTitleChange(slotId, title) {
   }
 
   updateSlotTitle(slotId, trimmed);
+  syncReelHeaderTitle(slotId, trimmed);
   scheduleRender();
 }
 
@@ -575,6 +589,21 @@ async function handleCsvImport(slotId, file) {
 function bindEvents() {
   document.addEventListener('focusout', () => {
     flushDeferredRender(flushPendingRender);
+  });
+
+  document.addEventListener('input', (event) => {
+    if (isSpinLocked()) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) {
+      return;
+    }
+
+    if (target.dataset.action === 'edit-slot-title' && target.dataset.slotId) {
+      syncReelHeaderTitle(target.dataset.slotId, target.value);
+    }
   });
 
   document.addEventListener('click', (event) => {

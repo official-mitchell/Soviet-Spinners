@@ -1,5 +1,5 @@
 /* Design tokens — Soviet Spinners visual system (handoff §3–§5, §11) */
-/* Updated: 2026-08-05 — longer reel spin/settle timing to match spin sound effects */
+/* Updated: 2026-08-05 — larger reel cells for card-style option tiles */
 
 :root {
   /* Primitive — neutral */
@@ -128,8 +128,8 @@
   --type-heading-section: 20px;
   --type-heading-component: 16px;
   --type-label-reel: 15px;
-  --type-reel-result: clamp(30px, 3vw, 44px);
-  --type-reel-preview: clamp(15px, 1.4vw, 18px);
+  --type-reel-result: clamp(36px, 3.6vw, 52px);
+  --type-reel-preview: clamp(20px, 2vw, 28px);
   --type-label-button-lg: 18px;
   --type-body-md: 15px;
   --type-body-sm: 13px;
@@ -186,8 +186,8 @@
   --shell-max-width: 1680px;
   --header-height: 72px;
   --machine-min-height: 448px;
-  --reel-viewport-height: 280px;
-  --reel-cell-height: 80px;
+  --reel-viewport-height: 300px;
+  --reel-cell-height: 96px;
   --reel-stagger-ms: 160ms;
   --reel-spin-travel-ms: 2400ms;
   --reel-spin-settle-ms: 200ms;

@@ -1,5 +1,5 @@
 // DOM rendering for slot management UI — checklist §2–§7.
-// Updated: 2026-08-05 — mechanical handle markup + click-to-force-select popup.
+// Updated: 2026-08-05 — gold nav/actions, freeze redesign, reel title span for live sync.
 
 import { countDrawableSlots } from '../data/spin.js';
 import { getForcedSlotTitles, isForcedRoundResult, resolveHistorySlotTitle } from './history-display.js';
@@ -82,8 +82,8 @@ function renderSidebar(activeView) {
       </button>
       <nav>
         <ul class="nav-list">
-          <li>${renderNavItem('slots', '▣', 'Slots', activeView)}</li>
-          <li>${renderNavItem('history', '◷', 'History', activeView)}</li>
+          <li>${renderNavItem('slots', '▣', 'SLOTS', activeView)}</li>
+          <li>${renderNavItem('history', '◷', 'HISTORY', activeView)}</li>
         </ul>
       </nav>
     </aside>
@@ -263,28 +263,21 @@ function renderSpinControls(spinControls) {
   const spinUnfrozenAttr = spinControls.spinUnfrozenDisabled ? 'disabled' : '';
   const surpriseAttr = spinControls.surpriseDisabled ? 'disabled' : '';
   const shuffleAttr = spinControls.shuffleDisabled ? 'disabled' : '';
-  const supportText = spinControls.unfrozenDrawable === 0
-    ? 'Unfreeze at least one slot with options'
-    : `${spinControls.unfrozenDrawable} active slot${spinControls.unfrozenDrawable === 1 ? '' : 's'} will spin`;
-
   const spinReadyClass = spinUnfrozenAttr ? '' : ' btn--spin--ready';
 
   return `
     <div class="spin-controls">
-      <button type="button" class="btn btn--secondary btn--shuffle" data-action="shuffle-all" ${shuffleAttr}>
-        <span class="btn__icon" aria-hidden="true">🔀</span>
-        <span>Shuffle all</span>
+      <button type="button" class="btn btn--secondary btn--gold-action btn--shuffle" data-action="shuffle-all" ${shuffleAttr}>
+        <span class="btn__icon btn__icon--gold" aria-hidden="true">🔀</span>
+        <span class="btn--gold-action__label">Shuffle all</span>
       </button>
       <button type="button" class="btn btn--spin surface-red-enamel${spinReadyClass}" data-action="spin-unfrozen" ${spinUnfrozenAttr}>
-        <span class="btn--spin__top">
-          <span class="btn--spin__icon" aria-hidden="true">★</span>
-          <span class="btn--spin__label">Spin slots</span>
-        </span>
-        <span class="btn--spin__support">${supportText}</span>
+        <span class="btn--spin__icon" aria-hidden="true">★</span>
+        <span class="btn--spin__label">Spin slots</span>
       </button>
-      <button type="button" class="btn btn--secondary btn--surprise" data-action="surprise-me" ${surpriseAttr}>
-        <span class="btn__icon" aria-hidden="true">🎲</span>
-        <span>Surprise me</span>
+      <button type="button" class="btn btn--secondary btn--gold-action btn--surprise" data-action="surprise-me" ${surpriseAttr}>
+        <span class="btn__icon btn__icon--gold" aria-hidden="true">🎲</span>
+        <span class="btn--gold-action__label">Surprise me</span>
       </button>
     </div>
   `;
@@ -380,17 +373,9 @@ function renderReelCard(slot, index, uiState = {}, spinLocked = false) {
   const frozenBadge = slot.frozen
     ? `<span class="reel-card__frozen-badge"><span aria-hidden="true">❄</span> Frozen</span>`
     : '';
-  const eliminatedCount = slot.eliminatedOptions?.length ?? 0;
-  const poolMeta =
-    eliminatedCount > 0
-      ? `<p class="reel-card__pool-meta">${slot.options.length} in pool · ${eliminatedCount} eliminated</p>`
-      : slot.options.length > 0
-        ? `<p class="reel-card__pool-meta">${slot.options.length} in pool</p>`
-        : '';
-
   const drumMarkup = renderReelDrumViewport(slot, display, Boolean(spinning), spinTargetLabel);
 
-  const freezeLabel = slot.frozen ? '❄ Unfreeze' : '❄ Freeze';
+  const freezeLabel = slot.frozen ? 'Unfreeze' : 'Freeze';
   const isForced = Boolean(slot.currentResult?.forced);
   const canPickOption = slot.options.length > 0 && !spinLocked && !spinning;
   const viewportSelectableClass = canPickOption ? ' reel-card__viewport--selectable' : '';
@@ -405,10 +390,9 @@ function renderReelCard(slot, index, uiState = {}, spinLocked = false) {
       ${unforceButton}
       <header class="reel-card__header">
         <span class="reel-card__header-star" aria-hidden="true">★</span>
-        ${escapeHtml(slot.title)}
+        <span class="reel-card__header-title">${escapeHtml(slot.title)}</span>
         <span class="reel-card__header-star" aria-hidden="true">★</span>
       </header>
-      ${poolMeta}
       <div
         class="reel-card__viewport${viewportSelectableClass} ${display.kind === 'gated-prompt' ? 'reel-card__viewport--gated' : ''}"
         ${canPickOption ? `data-action="open-force-select" data-slot-id="${slot.id}" role="button" tabindex="0" aria-haspopup="listbox" aria-label="Pick a result for ${escapeAttr(slot.title)}"` : ''}
@@ -418,11 +402,14 @@ function renderReelCard(slot, index, uiState = {}, spinLocked = false) {
       <div class="reel-card__controls">
         <button
           type="button"
-          class="btn btn--secondary btn--freeze btn--block"
+          class="btn btn--freeze btn--block"
           data-action="toggle-freeze"
           data-slot-id="${slot.id}"
           ${controlDisabled}
-        >${freezeLabel}</button>
+        >
+          <span class="btn--freeze__icon" aria-hidden="true">❄</span>
+          <span class="btn--freeze__label">${freezeLabel}</span>
+        </button>
       </div>
       ${
         display.kind === 'gated-prompt'
