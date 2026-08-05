@@ -1,5 +1,5 @@
 // Modal dialog helper for destructive confirmations — checklist §2.2.
-// Updated: 2026-08-05 — remove keydown listener on all exit paths.
+// Updated: 2026-08-05 — spin link results dialog with open-link actions.
 
 /** @type {HTMLElement | null} */
 let root = null;
@@ -72,6 +72,84 @@ export function confirmDialog({
     document.addEventListener('keydown', onKeyDown);
     cancelButton?.focus();
   });
+}
+
+/**
+ * @typedef {{ slotTitle: string, label: string, url: string }} LinkResultEntry
+ */
+
+/**
+ * @param {LinkResultEntry[]} results
+ * @returns {Promise<void>}
+ */
+export function showLinkResultsDialog(results) {
+  if (!root || results.length === 0) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    root.hidden = false;
+    root.innerHTML = `
+      <div class="modal-scrim" data-action="dismiss-link-results"></div>
+      <div class="modal modal--link-results" role="dialog" aria-modal="true" aria-labelledby="link-results-title">
+        <h2 class="modal__title" id="link-results-title">Spin results</h2>
+        <p class="modal__body">Open a linked result below, or close when you are done.</p>
+        <ul class="link-results-list">
+          ${results
+            .map(
+              (result, index) => `
+            <li class="link-results-list__item">
+              <div class="link-results-list__copy">
+                <span class="link-results-list__slot">${escapeHtml(result.slotTitle)}</span>
+                <span class="link-results-list__label">${escapeHtml(result.label)}</span>
+              </div>
+              <a
+                class="btn btn--primary link-results-list__open"
+                href="${escapeAttr(result.url)}"
+                target="_blank"
+                rel="noopener noreferrer"
+                data-action="open-link-result"
+                data-result-index="${index}"
+              >Open link</a>
+            </li>`,
+            )
+            .join('')}
+        </ul>
+        <div class="modal__actions">
+          <button type="button" class="btn btn--secondary" data-action="dismiss-link-results">Close</button>
+        </div>
+      </div>
+    `;
+
+  /** @param {boolean} [shouldResolve] */
+    function finish(shouldResolve = true) {
+      document.removeEventListener('keydown', onKeyDown);
+      root.hidden = true;
+      root.innerHTML = '';
+      if (shouldResolve) {
+        resolve();
+      }
+    }
+
+    root.querySelectorAll('[data-action="dismiss-link-results"]').forEach((element) => {
+      element.addEventListener('click', () => finish(), { once: true });
+    });
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        finish();
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    root.querySelector('[data-action="dismiss-link-results"].btn')?.focus();
+  });
+}
+
+/** @param {string} value */
+function escapeAttr(value) {
+  return escapeHtml(value);
 }
 
 /** @param {string} value */

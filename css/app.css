@@ -1,5 +1,5 @@
 /* App layout and components — Soviet Spinners §2–§7 visual system */
-/* Updated: 2026-08-05 — manual CSV paste textarea for link imports */
+/* Updated: 2026-08-05 — option row link layout and spin results modal */
 
 .app-shell {
   display: grid;
@@ -1434,6 +1434,7 @@
 .eliminated-option {
   display: flex;
   align-items: center;
+  gap: var(--space-2);
   min-height: 32px;
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
@@ -1442,6 +1443,8 @@
 }
 
 .eliminated-option__label {
+  flex: 1;
+  min-width: 0;
   font-size: var(--type-body-sm);
   color: var(--text-muted);
   text-decoration: line-through;
@@ -1451,12 +1454,16 @@
 
 .option-row {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: var(--space-2);
   min-height: 44px;
   padding: var(--space-2);
   border-radius: var(--radius-sm);
+}
+
+.option-row--links {
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
 }
 
 .option-row:hover {
@@ -1478,19 +1485,34 @@
   padding: var(--space-1);
 }
 
+.option-row__label-wrap {
+  min-width: 0;
+}
+
 .option-row__label {
+  display: block;
+  min-width: 0;
   color: var(--text-primary);
   font-size: 14px;
   cursor: text;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .option-row__label-input {
   width: 100%;
+  min-width: 0;
   background: var(--bg-inset);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
-  padding: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  font-size: 13px;
+}
+
+.option-row--links .option-row__label-input {
+  max-width: 100%;
 }
 
 .option-row__star {
@@ -1747,19 +1769,46 @@
 }
 
 .option-row__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
-  font-size: 14px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-size: 15px;
   line-height: 1;
-  opacity: 0.9;
+  text-decoration: none;
+  opacity: 0.95;
+  cursor: pointer;
+}
+
+.option-row__link--active {
+  color: var(--gold-100);
+}
+
+.option-row__link--active:hover,
+.option-row__link--active:focus-visible {
+  background: rgba(248, 231, 173, 0.12);
+  outline: 2px solid var(--border-gold-highlight);
+  outline-offset: 1px;
 }
 
 .option-row__link--missing {
   color: var(--text-muted);
-  opacity: 0.45;
+  opacity: 0.55;
 }
 
-.option-row--links .option-row__label {
-  flex: 1;
+.option-row__link--missing:hover,
+.option-row__link--missing:focus-visible {
+  opacity: 0.9;
+  background: var(--bg-control-hover);
+}
+
+.option-row--links .option-row__label-wrap {
+  min-width: 0;
 }
 
 .btn--import {
@@ -2285,6 +2334,55 @@
   display: flex;
   justify-content: flex-end;
   gap: var(--space-3);
+}
+
+.modal--link-results {
+  width: min(520px, 100%);
+}
+
+.link-results-list {
+  list-style: none;
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.link-results-list__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border: var(--border-hairline) solid var(--border-subtle);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.link-results-list__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.link-results-list__slot {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.link-results-list__label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.link-results-list__open {
+  flex-shrink: 0;
+  text-decoration: none;
 }
 
 @media (min-width: 1440px) {

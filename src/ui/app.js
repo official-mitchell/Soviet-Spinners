@@ -1,5 +1,5 @@
 // Application bootstrap and event wiring — Slot Management UI §2–§7.
-// Updated: 2026-08-05 — manual CSV paste import for name/link rows.
+// Updated: 2026-08-05 — spin link results popup and clickable option links.
 
 import { countDrawableSlots } from '../data/spin.js';
 import {
@@ -31,7 +31,7 @@ import {
   updateOptionLink,
   updateSlotTitle,
 } from '../data/index.js';
-import { confirmDialog, initModal, isModalOpen } from './modal.js';
+import { confirmDialog, initModal, isModalOpen, showLinkResultsDialog } from './modal.js';
 import {
   beginOptionEdit,
   closeAllForceSelectPopups,
@@ -163,6 +163,67 @@ function doRender(next = {}) {
 }
 
 /**
+ * @param {import('../data/types.js').Slot} slot
+ * @returns {{ slotTitle: string, label: string, url: string } | null}
+ */
+function resolveSlotLinkResult(slot) {
+  if (!slot.currentResult) {
+    return null;
+  }
+
+  const option =
+    slot.options.find((entry) => entry.id === slot.currentResult.optionId) ??
+    slot.eliminatedOptions?.find((entry) => entry.id === slot.currentResult.optionId);
+
+  if (!option?.url) {
+    return null;
+  }
+
+  return {
+    slotTitle: slot.title,
+    label: slot.currentResult.label,
+    url: option.url,
+  };
+}
+
+/**
+ * @returns {Array<{ slotTitle: string, label: string, url: string }>}
+ */
+function collectImmediateLinkResults() {
+  return getState()
+    .slots.filter((slot) => slot.linksMode && slot.revealMode === 'immediate')
+    .map((slot) => resolveSlotLinkResult(slot))
+    .filter((result) => Boolean(result));
+}
+
+/**
+ * @param {string} slotId
+ * @param {string} optionId
+ */
+function handleEditOptionLink(slotId, optionId) {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  const slot = getState().slots.find((entry) => entry.id === slotId);
+  const option =
+    slot?.options.find((entry) => entry.id === optionId) ??
+    slot?.eliminatedOptions?.find((entry) => entry.id === optionId);
+
+  if (!slot || !option) {
+    return;
+  }
+
+  const nextUrl = window.prompt('Paste link URL', option.url ?? '');
+  if (nextUrl === null) {
+    return;
+  }
+
+  updateOptionLink(slotId, optionId, nextUrl);
+  scheduleRender();
+}
+
+/**
  * @param {boolean} includeFrozen
  */
 async function runAnimatedSpin(includeFrozen) {
@@ -197,6 +258,13 @@ async function runAnimatedSpin(includeFrozen) {
     spinInProgress = false;
     activeSpinningSlotIds = [];
     scheduleRender({ spinningSlotIds: [], spinError: spinErrorMessage });
+
+    if (!spinErrorMessage) {
+      const linkResults = collectImmediateLinkResults();
+      if (linkResults.length > 0) {
+        void showLinkResultsDialog(linkResults);
+      }
+    }
   });
 }
 
@@ -960,6 +1028,15 @@ function bindEvents() {
             beginOptionEdit(slotId, optionId, option.label);
           }
         }
+        break;
+      case 'edit-option-link':
+        if (slotId && optionId) {
+          event.stopPropagation();
+          handleEditOptionLink(slotId, optionId);
+        }
+        break;
+      case 'open-option-link':
+        event.stopPropagation();
         break;
       default:
         closeAllOptionMenus();

@@ -1,5 +1,5 @@
 // DOM rendering for slot management UI — checklist §2–§7.
-// Updated: 2026-08-05 — manual CSV paste textarea for name/link imports.
+// Updated: 2026-08-05 — clickable option links, eliminated link icons, edit layout fix.
 
 import { countDrawableSlots } from '../data/spin.js';
 import { getForcedSlotTitles, isForcedRoundResult, resolveHistorySlotTitle } from './history-display.js';
@@ -581,10 +581,7 @@ function renderEliminatedOptions(slot) {
       <h3 class="slot-editor__eliminated-title">Eliminated (${eliminated.length})</h3>
       <ul class="slot-editor__eliminated-list">
         ${eliminated
-          .map(
-            (option) =>
-              `<li class="eliminated-option"><span class="eliminated-option__label">${escapeHtml(option.label)}</span></li>`,
-          )
+          .map((option) => renderEliminatedOption(option, slot.linksMode, slot.id))
           .join('')}
       </ul>
     </section>
@@ -596,14 +593,66 @@ function renderEliminatedOptions(slot) {
  * @param {import('../data/types.js').Option} option
  * @param {boolean} [spinLocked]
  */
+/**
+ * @param {import('../data/types.js').Option} option
+ * @param {boolean} [linksMode]
+ */
+function renderEliminatedOption(option, linksMode = false, slotId = '') {
+  return `
+    <li class="eliminated-option">
+      <span class="eliminated-option__label">${escapeHtml(option.label)}</span>
+      ${renderOptionLinkControl(option, linksMode, slotId, option.id)}
+    </li>
+  `;
+}
+
+/**
+ * @param {import('../data/types.js').Option} option
+ * @param {boolean} linksMode
+ * @param {string} [slotId]
+ * @param {string} [optionId]
+ * @param {string} [lockedAttr]
+ */
+function renderOptionLinkControl(option, linksMode, slotId = '', optionId = '', lockedAttr = '') {
+  if (option.url) {
+    return `<a
+      href="${escapeAttr(option.url)}"
+      class="option-row__link option-row__link--active"
+      target="_blank"
+      rel="noopener noreferrer"
+      data-action="open-option-link"
+      data-slot-id="${slotId}"
+      data-option-id="${optionId}"
+      title="${escapeAttr(option.url)}"
+      aria-label="Open link for ${escapeAttr(option.label)}"
+    >🔗</a>`;
+  }
+
+  if (!linksMode) {
+    return '';
+  }
+
+  return `<button
+    type="button"
+    class="option-row__link option-row__link--missing"
+    data-action="edit-option-link"
+    data-slot-id="${slotId}"
+    data-option-id="${optionId}"
+    aria-label="Add link for ${escapeAttr(option.label)}"
+    title="Add link"
+    ${lockedAttr}
+  >🔗</button>`;
+}
+
+/**
+ * @param {string} slotId
+ * @param {import('../data/types.js').Option} option
+ * @param {boolean} [spinLocked]
+ */
 function renderOptionRow(slotId, option, linksMode = false, spinLocked = false) {
   const lockedAttr = spinLocked ? 'disabled' : '';
   const dragEnabled = spinLocked ? 'false' : 'true';
-  const linkBadge = option.url
-    ? `<span class="option-row__link" title="${escapeAttr(option.url)}" aria-label="Linked option">🔗</span>`
-    : linksMode
-      ? `<span class="option-row__link option-row__link--missing" aria-hidden="true">—</span>`
-      : '';
+  const linkControl = renderOptionLinkControl(option, linksMode, slotId, option.id, lockedAttr);
 
   return `
     <li
@@ -614,8 +663,10 @@ function renderOptionRow(slotId, option, linksMode = false, spinLocked = false) 
       data-action="drag-option"
     >
       <span class="option-row__drag" aria-hidden="true">⋮⋮</span>
-      <span class="option-row__label" data-action="edit-option" data-slot-id="${slotId}" data-option-id="${option.id}">${escapeHtml(option.label)}</span>
-      ${linkBadge}
+      <span class="option-row__label-wrap">
+        <span class="option-row__label" data-action="edit-option" data-slot-id="${slotId}" data-option-id="${option.id}">${escapeHtml(option.label)}</span>
+      </span>
+      ${linkControl}
       <button
         type="button"
         class="option-row__star ${option.highlighted ? 'option-row__star--active' : ''}"
@@ -881,6 +932,11 @@ export function beginOptionEdit(slotId, optionId, currentLabel) {
     return;
   }
 
+  const wrap =
+    label.parentElement instanceof HTMLElement && label.parentElement.classList.contains('option-row__label-wrap')
+      ? label.parentElement
+      : null;
+
   const input = document.createElement('input');
   input.type = 'text';
   input.className = 'option-row__label-input';
@@ -888,7 +944,13 @@ export function beginOptionEdit(slotId, optionId, currentLabel) {
   input.dataset.action = 'commit-option-edit';
   input.dataset.slotId = slotId;
   input.dataset.optionId = optionId;
-  label.replaceWith(input);
+
+  if (wrap) {
+    wrap.replaceChildren(input);
+  } else {
+    label.replaceWith(input);
+  }
+
   input.focus();
   input.select();
 }

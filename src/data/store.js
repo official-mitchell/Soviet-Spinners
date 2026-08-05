@@ -1,5 +1,5 @@
 // Session store: Slot/option CRUD, CSV import, spin mechanics, and localStorage persistence.
-// Updated: 2026-08-05 — links mode, option URLs, and link CSV import.
+// Updated: 2026-08-05 — update links on eliminated options too.
 
 import { DEFAULT_SLOT_TITLE, REVEAL_MODES } from './constants.js';
 import {
@@ -387,10 +387,31 @@ export function setSlotLinksMode(slotId, linksMode) {
  * @returns {import('./types.js').Option}
  */
 export function updateOptionLink(slotId, optionId, url) {
-  const { slotIndex, optionIndex } = requireOption(slotId, optionId);
-  const current = state.slots[slotIndex].options[optionIndex];
+  const slotIndex = requireSlot(slotId);
   const normalizedUrl = normalizeOptionUrl(url);
+  const activeIndex = state.slots[slotIndex].options.findIndex((option) => option.id === optionId);
 
+  if (activeIndex !== -1) {
+    const current = state.slots[slotIndex].options[activeIndex];
+    /** @type {import('./types.js').Option} */
+    const next = { ...current };
+    if (normalizedUrl) {
+      next.url = normalizedUrl;
+    } else {
+      delete next.url;
+    }
+    state.slots[slotIndex].options[activeIndex] = next;
+    saveSession();
+    return structuredClone(next);
+  }
+
+  const eliminated = state.slots[slotIndex].eliminatedOptions ?? [];
+  const eliminatedIndex = eliminated.findIndex((option) => option.id === optionId);
+  if (eliminatedIndex === -1) {
+    throw new Error(`Option not found: ${optionId}`);
+  }
+
+  const current = eliminated[eliminatedIndex];
   /** @type {import('./types.js').Option} */
   const next = { ...current };
   if (normalizedUrl) {
@@ -399,7 +420,9 @@ export function updateOptionLink(slotId, optionId, url) {
     delete next.url;
   }
 
-  state.slots[slotIndex].options[optionIndex] = next;
+  state.slots[slotIndex].eliminatedOptions = eliminated.map((option, index) =>
+    index === eliminatedIndex ? next : option,
+  );
   saveSession();
   return structuredClone(next);
 }
