@@ -1,7 +1,8 @@
-// DOM rendering for slot management UI — checklist §2–§4.
-// Updated: 2026-08-05 — per-control spin disable, spin error banner, spin lock UI.
+// DOM rendering for slot management UI — checklist §2–§5.
+// Updated: 2026-08-05 — design system surfaces, reel drums, Slots/History nav views.
 
 import { countDrawableSlots } from '../data/spin.js';
+import { renderReelDrumViewport } from './reel-drum.js';
 import { getReelDisplayState } from './reveal.js';
 
 const ACCENT_CLASSES = ['slot-editor--accent-red', 'slot-editor--accent-gold', 'slot-editor--accent-metal'];
@@ -15,6 +16,8 @@ const ACCENT_CLASSES = ['slot-editor--accent-red', 'slot-editor--accent-gold', '
  * @param {string[]} [uiState.spinningSlotIds]
  * @param {boolean} [uiState.spinLocked]
  * @param {string | null} [uiState.spinError]
+ * @param {'slots' | 'history'} [uiState.activeView]
+ * @param {Record<string, string>} [uiState.spinDrawLabels]
  */
 export function renderAppShell(session, uiState = {}) {
   const app = document.getElementById('app');
@@ -22,6 +25,7 @@ export function renderAppShell(session, uiState = {}) {
     return;
   }
 
+  const activeView = uiState.activeView === 'history' ? 'history' : 'slots';
   const sortedSlots = [...session.slots].sort((a, b) => a.order - b.order);
   const activeCount = sortedSlots.filter((slot) => !slot.frozen).length;
   const spinLocked = Boolean(uiState.spinLocked);
@@ -37,21 +41,28 @@ export function renderAppShell(session, uiState = {}) {
   };
 
   app.innerHTML = `
-    ${renderSidebar()}
+    ${renderSidebar(activeView)}
     <main class="main">
-      ${renderPageHeader()}
-      ${renderMachineHousing(sortedSlots, uiState, spinControls)}
-      ${renderEditorSection(sortedSlots, uiState, spinLocked)}
+      ${renderPageHeader(activeView)}
+      ${
+        activeView === 'history'
+          ? renderHistoryView(session)
+          : `
+            ${renderMachineHousing(sortedSlots, uiState, spinControls)}
+            ${renderEditorSection(sortedSlots, uiState, spinLocked)}
+          `
+      }
     </main>
-    ${renderUtilityRail(session, activeCount, spinLocked)}
+    ${renderUtilityRail(session, activeCount, spinLocked, activeView)}
   `;
 
   applyPostRenderFocus(uiState);
 }
 
-function renderSidebar() {
+/** @param {'slots' | 'history'} activeView */
+function renderSidebar(activeView) {
   return `
-    <aside class="sidebar" aria-label="Primary navigation">
+    <aside class="sidebar surface-metal" aria-label="Primary navigation">
       <div class="wordmark">
         <span class="wordmark__star" aria-hidden="true">★</span>
         <div class="wordmark__text">
@@ -61,32 +72,118 @@ function renderSidebar() {
       </div>
       <nav>
         <ul class="nav-list">
-          <li><button type="button" class="nav-item nav-item--active"><span aria-hidden="true">▣</span><span>Slots</span></button></li>
-          <li><button type="button" class="nav-item" disabled><span aria-hidden="true">◷</span><span>History</span></button></li>
-          <li><button type="button" class="nav-item" disabled><span aria-hidden="true">▤</span><span>Templates</span></button></li>
-          <li><button type="button" class="nav-item" disabled><span aria-hidden="true">★</span><span>My Games</span></button></li>
-          <li><button type="button" class="nav-item" disabled><span aria-hidden="true">⚙</span><span>Settings</span></button></li>
+          <li>${renderNavItem('slots', '▣', 'Slots', activeView)}</li>
+          <li>${renderNavItem('history', '◷', 'History', activeView)}</li>
+          <li>${renderNavItem('templates', '▤', 'Templates', activeView, true)}</li>
+          <li>${renderNavItem('my-games', '★', 'My Games', activeView, true)}</li>
+          <li>${renderNavItem('settings', '⚙', 'Settings', activeView, true)}</li>
         </ul>
       </nav>
     </aside>
   `;
 }
 
-function renderPageHeader() {
+/**
+ * @param {string} view
+ * @param {string} icon
+ * @param {string} label
+ * @param {'slots' | 'history'} activeView
+ * @param {boolean} [stubOnly]
+ */
+function renderNavItem(view, icon, label, activeView, stubOnly = false) {
+  const isActive = !stubOnly && activeView === view;
+  const activeClass = isActive ? ' nav-item--active' : '';
+  const disabled = stubOnly ? 'disabled' : '';
+  const action = stubOnly ? '' : `data-action="nav-${view}"`;
+
+  return `
+    <button type="button" class="nav-item${activeClass}" ${action} ${disabled}>
+      <span class="nav-item__icon" aria-hidden="true">${icon}</span>
+      <span>${label}</span>
+    </button>
+  `;
+}
+
+/** @param {'slots' | 'history'} activeView */
+function renderPageHeader(activeView) {
+  const title = activeView === 'history' ? 'Round History' : 'Game Night Picks';
+  const subtitle =
+    activeView === 'history'
+      ? 'Append-only log of completed rounds'
+      : 'Edit slots, options, and spin controls';
+
   return `
     <header class="page-header">
       <div>
-        <h1 class="page-header__title">Game Night Picks</h1>
-        <p class="page-header__subtitle">Edit slots, options, and spin controls</p>
+        <h1 class="page-header__title">${title}</h1>
+        <p class="page-header__subtitle">${subtitle}</p>
       </div>
     </header>
   `;
 }
 
+/** @param {import('../data/types.js').SessionState} session */
+function renderHistoryView(session) {
+  const rounds = [...session.roundHistory].reverse();
+  const slotById = new Map(session.slots.map((slot) => [slot.id, slot]));
+
+  if (rounds.length === 0) {
+    return `
+      <section class="history-panel surface-gold-frame" aria-label="Round history">
+        <p class="history-panel__empty">No rounds completed yet. Spin the machine to start logging history.</p>
+      </section>
+    `;
+  }
+
+  const rows = rounds
+    .map((round) => {
+      const summary = round.results
+        .map((result) => {
+          const slot = slotById.get(result.slotId);
+          const forced = round.forcedSlotIds.includes(result.slotId);
+          const label = result.label ?? 'Unknown';
+          const title = result.slotTitle ?? slot?.title ?? 'Slot';
+          const forcedClass = forced ? ' history-table__entry--forced' : '';
+          const prefix = forced ? '⚡ ' : '';
+          return `<span class="history-table__entry${forcedClass}">${prefix}${escapeHtml(title)}: ${escapeHtml(label)}</span>`;
+        })
+        .join(' · ');
+
+      return `
+        <tr>
+          <th scope="row">Round ${round.roundNumber}</th>
+          <td class="history-table__results">${summary}</td>
+          <td class="history-table__time">${formatRoundTime(round.timestamp)}</td>
+        </tr>
+      `;
+    })
+    .join('');
+
+  return `
+    <section class="history-panel surface-gold-frame" aria-label="Round history">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th scope="col">Round</th>
+            <th scope="col">Results</th>
+            <th scope="col">Time</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </section>
+  `;
+}
+
+/** @param {number} timestamp */
+function formatRoundTime(timestamp) {
+  return new Date(timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
 /** @param {import('../data/types.js').Slot[]} slots */
 function renderMachineHousing(slots, uiState, spinControls) {
   return `
-    <section class="machine-housing" aria-label="Slot machine">
+    <section class="machine-housing surface-gold-frame" aria-label="Slot machine">
       <h2 class="machine-housing__label">Game Night Picks</h2>
       ${renderSpinError(uiState.spinError)}
       <div class="reel-row" id="reel-row">
@@ -132,12 +229,13 @@ function renderSpinControls(spinControls) {
 
   return `
     <div class="spin-controls">
-      <button type="button" class="btn btn--secondary" data-action="shuffle-all" ${shuffleAttr}>Shuffle all</button>
-      <button type="button" class="btn btn--spin" data-action="spin-unfrozen" ${spinUnfrozenAttr}>
+      <button type="button" class="btn btn--secondary btn--shuffle" data-action="shuffle-all" ${shuffleAttr}>Shuffle all</button>
+      <button type="button" class="btn btn--spin surface-red-enamel" data-action="spin-unfrozen" ${spinUnfrozenAttr}>
+        <span class="btn--spin__icon" aria-hidden="true">◎</span>
         <span class="btn--spin__label">Spin unfrozen slots</span>
         <span class="btn--spin__support">${supportText}</span>
       </button>
-      <button type="button" class="btn btn--secondary" data-action="surprise-me" ${surpriseAttr}>Surprise me</button>
+      <button type="button" class="btn btn--secondary btn--surprise" data-action="surprise-me" ${surpriseAttr}>Surprise me</button>
     </div>
   `;
 }
@@ -162,12 +260,13 @@ function renderEditorSection(slots, uiState, spinLocked) {
 }
 
 /** @param {import('../data/types.js').SessionState} session */
-function renderUtilityRail(session, activeCount, spinLocked) {
+function renderUtilityRail(session, activeCount, spinLocked, activeView) {
   const frozenCount = session.slots.filter((slot) => slot.frozen).length;
   const unlockDisabled = frozenCount === 0 || spinLocked ? 'disabled' : '';
+  const hideOnHistory = activeView === 'history' ? ' utility-rail--history' : '';
 
   return `
-    <aside class="utility-rail" aria-label="Round and slot utilities">
+    <aside class="utility-rail${hideOnHistory}" aria-label="Round and slot utilities">
       <div class="stat-card">
         <p class="stat-card__label">Round</p>
         <p class="stat-card__value">${session.currentRound}</p>
@@ -197,17 +296,12 @@ function renderReelCard(slot, uiState = {}, spinLocked = false) {
   const spinning = uiState.spinningSlotIds?.includes(slot.id);
   const display = getReelDisplayState(slot);
   const controlDisabled = spinLocked ? 'disabled' : '';
-  const viewportClass = [
-    'reel-card__viewport',
-    spinning ? 'reel-card__viewport--spinning' : '',
-    display.kind === 'gated-prompt' ? 'reel-card__viewport--gated' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const spinTargetLabel = uiState.spinDrawLabels?.[slot.id];
+  const frozenBadge = slot.frozen
+    ? `<span class="reel-card__frozen-badge"><span aria-hidden="true">🔒</span> Frozen</span>`
+    : '';
 
-  const resultMarkup = spinning
-    ? '<p class="reel-card__placeholder reel-card__placeholder--spinning">Spinning…</p>'
-    : renderReelViewportContent(display, slot);
+  const drumMarkup = renderReelDrumViewport(slot, display, Boolean(spinning), spinTargetLabel);
 
   const forceSelectOptions = slot.options.length
     ? slot.options
@@ -220,9 +314,10 @@ function renderReelCard(slot, uiState = {}, spinLocked = false) {
 
   return `
     <article class="reel-card ${slot.frozen ? 'reel-card--frozen' : ''}" data-slot-id="${slot.id}">
+      ${frozenBadge}
       <header class="reel-card__header">${escapeHtml(slot.title)}</header>
-      <div class="${viewportClass}">
-        ${resultMarkup}
+      <div class="reel-card__viewport ${display.kind === 'gated-prompt' ? 'reel-card__viewport--gated' : ''}">
+        ${drumMarkup}
       </div>
       <div class="reel-card__controls">
         <button
@@ -247,23 +342,6 @@ function renderReelCard(slot, uiState = {}, spinLocked = false) {
       }
     </article>
   `;
-}
-
-/**
- * @param {import('./reveal.js').ReelDisplayState} display
- * @param {import('../data/types.js').Slot} slot
- */
-function renderReelViewportContent(display, slot) {
-  if (display.kind === 'empty') {
-    return `<p class="reel-card__placeholder">${escapeHtml(display.text)}</p>`;
-  }
-
-  if (display.kind === 'gated-prompt') {
-    return `<p class="reel-card__gated-prompt">${escapeHtml(display.text)}</p>`;
-  }
-
-  const forcedClass = display.forced ? ' reel-card__result--forced' : '';
-  return `<p class="reel-card__result${forcedClass}">${escapeHtml(display.text)}</p>`;
 }
 
 /**

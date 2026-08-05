@@ -211,7 +211,12 @@ function normalizeRound(raw) {
             return null;
           }
 
-          return { slotId: entry.slotId, optionId: entry.optionId };
+          return {
+            slotId: entry.slotId,
+            optionId: entry.optionId,
+            label: typeof entry.label === 'string' ? entry.label : undefined,
+            slotTitle: typeof entry.slotTitle === 'string' ? entry.slotTitle : undefined,
+          };
         })
         .filter(Boolean)
     : [];

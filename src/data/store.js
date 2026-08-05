@@ -1,5 +1,5 @@
 // Session store: Slot/option CRUD, CSV import, spin mechanics, and localStorage persistence.
-// Updated: 2026-08-05 — atomic commitSpinDraws rollback; carried frozen round results.
+// Updated: 2026-08-05 — slotTitle snapshots on round commit; atomic commitSpinDraws rollback.
 
 import { DEFAULT_SLOT_TITLE, REVEAL_MODES } from './constants.js';
 import {
@@ -305,6 +305,21 @@ export function planSpin(includeFrozen = false) {
 }
 
 /**
+ * @param {import('./types.js').Slot} slot
+ * @param {string} optionId
+ * @param {string} label
+ * @returns {import('./types.js').RoundResult}
+ */
+function createRoundResult(slot, optionId, label) {
+  return {
+    slotId: slot.id,
+    optionId,
+    label,
+    slotTitle: slot.title,
+  };
+}
+
+/**
  * @param {import('./spin.js').SpinDraw[]} draws
  * @returns {import('./types.js').Round}
  */
@@ -350,7 +365,7 @@ export function commitSpinDraws(draws) {
         revealed: revealMode === REVEAL_MODES.IMMEDIATE,
       };
 
-      results.push({ slotId: draw.slotId, optionId: draw.optionId });
+      results.push(createRoundResult(state.slots[slotIndex], draw.optionId, draw.label));
 
       const forcedIndex = forcedSlotIds.indexOf(draw.slotId);
       if (forcedIndex !== -1) {
@@ -364,18 +379,16 @@ export function commitSpinDraws(draws) {
       }
 
       if (slot.currentResult?.forced) {
-        results.push({
-          slotId: slot.id,
-          optionId: slot.currentResult.optionId,
-        });
+        results.push(
+          createRoundResult(slot, slot.currentResult.optionId, slot.currentResult.label),
+        );
         continue;
       }
 
       if (slot.frozen && slot.currentResult) {
-        results.push({
-          slotId: slot.id,
-          optionId: slot.currentResult.optionId,
-        });
+        results.push(
+          createRoundResult(slot, slot.currentResult.optionId, slot.currentResult.label),
+        );
       }
     }
 

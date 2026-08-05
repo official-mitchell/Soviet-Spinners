@@ -24,6 +24,7 @@ import {
   shuffleAll,
   spinUnfrozen,
   surpriseMe,
+  updateSlotTitle,
 } from '../src/data/index.js';
 
 describe('Spin mechanics (§4.1–§4.2)', () => {
@@ -187,5 +188,15 @@ describe('Spin mechanics (§4.1–§4.2)', () => {
     const round = getRoundHistory()[1];
     assert.ok(round.results.some((result) => result.slotId === carried.id));
     assert.ok(round.results.some((result) => result.slotId === spinner.id));
+  });
+
+  it('commitSpinDraws snapshots slot titles in round history', () => {
+    const slot = getState().slots[0];
+    updateSlotTitle(slot.id, 'Presenter A');
+    addOption(slot.id, 'Pick one');
+    spinUnfrozen();
+
+    const result = getRoundHistory()[0].results[0];
+    assert.equal(result.slotTitle, 'Presenter A');
   });
 });

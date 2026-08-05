@@ -39,7 +39,7 @@ import {
   shouldDeferRender,
 } from './edit-state.js';
 
-/** @type {{ focusSlotTitleId: string | null, focusAddOptionSlotId: string | null, importSummaries: Record<string, import('../data/types.js').CsvImportSummary>, spinningSlotIds: string[], spinLocked: boolean, spinError: string | null }} */
+/** @type {{ focusSlotTitleId: string | null, focusAddOptionSlotId: string | null, importSummaries: Record<string, import('../data/types.js').CsvImportSummary>, spinningSlotIds: string[], spinLocked: boolean, spinError: string | null, activeView: 'slots' | 'history', spinDrawLabels: Record<string, string> }} */
 const uiState = {
   focusSlotTitleId: null,
   focusAddOptionSlotId: null,
@@ -47,6 +47,8 @@ const uiState = {
   spinningSlotIds: [],
   spinLocked: false,
   spinError: null,
+  activeView: 'slots',
+  spinDrawLabels: {},
 };
 
 /** @type {boolean} */
@@ -95,6 +97,12 @@ function doRender(next = {}) {
   if ('spinError' in next) {
     spinErrorMessage = next.spinError ?? null;
   }
+  if (next.activeView) {
+    uiState.activeView = next.activeView;
+  }
+  if (next.spinDrawLabels) {
+    uiState.spinDrawLabels = next.spinDrawLabels;
+  }
 
   uiState.spinLocked = spinInProgress;
   uiState.spinningSlotIds = spinInProgress ? [...activeSpinningSlotIds] : [];
@@ -106,6 +114,9 @@ function doRender(next = {}) {
 
   uiState.focusSlotTitleId = null;
   uiState.focusAddOptionSlotId = null;
+  if (!spinInProgress) {
+    uiState.spinDrawLabels = {};
+  }
 }
 
 /**
@@ -124,7 +135,8 @@ async function runAnimatedSpin(includeFrozen) {
   spinInProgress = true;
   spinErrorMessage = null;
   activeSpinningSlotIds = plan.draws.map((draw) => draw.slotId);
-  scheduleRender({ spinningSlotIds: activeSpinningSlotIds, spinError: null });
+  const spinDrawLabels = Object.fromEntries(plan.draws.map((draw) => [draw.slotId, draw.label]));
+  scheduleRender({ spinningSlotIds: activeSpinningSlotIds, spinDrawLabels, spinError: null });
 
   await runSpinAnimation(plan.draws, (draws) => {
     try {
@@ -144,6 +156,18 @@ async function runAnimatedSpin(includeFrozen) {
 function handleDismissSpinError() {
   spinErrorMessage = null;
   scheduleRender({ spinError: null });
+}
+
+/**
+ * @param {'slots' | 'history'} view
+ */
+function handleNavView(view) {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  uiState.activeView = view;
+  scheduleRender({ activeView: view });
 }
 
 function handleShuffleAll() {
@@ -564,6 +588,12 @@ function bindEvents() {
         break;
       case 'dismiss-spin-error':
         handleDismissSpinError();
+        break;
+      case 'nav-slots':
+        handleNavView('slots');
+        break;
+      case 'nav-history':
+        handleNavView('history');
         break;
       case 'edit-option':
         if (slotId && optionId) {

@@ -35,6 +35,8 @@
  * @typedef {Object} RoundResult
  * @property {string} slotId
  * @property {string} optionId
+ * @property {string} [label]
+ * @property {string} [slotTitle]
  */
 
 /**
