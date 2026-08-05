@@ -1,0 +1,108 @@
+/* Design tokens — Soviet Spinners (handoff §3, §12) */
+/* Created: 2026-08-05 — CSS variables for Slot Management UI */
+
+:root {
+  --font-display: "Russo One", sans-serif;
+  --font-body: "Inter", sans-serif;
+
+  --bg-canvas: #0e0f11;
+  --bg-sidebar: #08090a;
+  --bg-panel: #141518;
+  --bg-panel-raised: #1a1b1f;
+  --bg-control: #23252a;
+  --bg-control-hover: #2c2e34;
+  --bg-inset: #08090a;
+  --bg-brand: #a8131d;
+  --bg-brand-hover: #c51e28;
+  --bg-brand-pressed: #820d15;
+  --bg-frozen: #102f42;
+  --bg-frozen-deep: #0c202d;
+  --bg-scrim: rgba(0, 0, 0, 0.72);
+
+  --text-primary: #eee8da;
+  --text-secondary: #d5cebf;
+  --text-muted: #b0aa9e;
+  --text-disabled: #85827c;
+  --text-on-brand: #f8f5ed;
+  --text-gold: #f8e7ad;
+  --text-gold-muted: #d9b654;
+  --text-frozen: #eaf8ff;
+
+  --border-subtle: #2c2e34;
+  --border-default: #42444b;
+  --border-gold: #be9134;
+  --border-gold-highlight: #ebcf7b;
+  --border-brand: #dc3438;
+  --border-frozen: #5fb9e9;
+  --border-focus: #f8e7ad;
+
+  --shadow-panel: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow-button: 0 8px 20px rgba(0, 0, 0, 0.4);
+  --glow-red: 0 0 20px rgba(215, 38, 46, 0.35);
+  --glow-gold: 0 0 18px rgba(229, 192, 103, 0.25);
+  --glow-frozen: 0 0 18px rgba(127, 199, 255, 0.3);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  --sidebar-width: 216px;
+  --utility-rail-width: 224px;
+  --shell-max-width: 1680px;
+  --header-height: 72px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
