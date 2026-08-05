@@ -1,5 +1,5 @@
 /* Design tokens — Soviet Spinners visual system (handoff §3–§5, §11) */
-/* Updated: 2026-08-05 — stronger canvas grain and reel display scale */
+/* Updated: 2026-08-05 — longer reel spin/settle timing to match spin sound effects */
 
 :root {
   /* Primitive — neutral */
@@ -55,6 +55,13 @@
   --green-700: #1b6236;
   --amber-300: #f3c663;
   --amber-500: #d69020;
+
+  /* Primitive — copper (lever, brass accents) */
+  --copper-100: #f6e2c2;
+  --copper-300: #e3b676;
+  --copper-500: #bd7f3f;
+  --copper-700: #7d4f24;
+  --copper-900: #3c2510;
 
   /* Semantic — surfaces */
   --bg-canvas: var(--neutral-900);
@@ -121,7 +128,8 @@
   --type-heading-section: 20px;
   --type-heading-component: 16px;
   --type-label-reel: 15px;
-  --type-reel-result: clamp(24px, 2.4vw, 36px);
+  --type-reel-result: clamp(30px, 3vw, 44px);
+  --type-reel-preview: clamp(15px, 1.4vw, 18px);
   --type-label-button-lg: 18px;
   --type-body-md: 15px;
   --type-body-sm: 13px;
@@ -173,16 +181,16 @@
   --ease-settle: cubic-bezier(0.15, 0.8, 0.25, 1.05);
 
   /* Layout — 1440px handoff §6 */
-  --sidebar-width: 216px;
-  --utility-rail-width: 224px;
+  --sidebar-width: 248px;
+  --utility-rail-width: 260px;
   --shell-max-width: 1680px;
   --header-height: 72px;
   --machine-min-height: 448px;
   --reel-viewport-height: 280px;
   --reel-cell-height: 80px;
-  --reel-stagger-ms: 140ms;
-  --reel-spin-travel-ms: 1200ms;
-  --reel-spin-settle-ms: 110ms;
+  --reel-stagger-ms: 160ms;
+  --reel-spin-travel-ms: 2400ms;
+  --reel-spin-settle-ms: 200ms;
   --reel-settle-overshoot-px: 8px;
 }
 

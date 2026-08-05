@@ -1,5 +1,5 @@
 // DOM rendering for slot management UI — checklist §2–§7.
-// Updated: 2026-08-05 — mock-aligned visual polish: logo, machine housing, reel enamel, editor stars.
+// Updated: 2026-08-05 — round 2 polish: click-to-force-select popup, revert control, bigger rails/lever, themed accents.
 
 import { countDrawableSlots } from '../data/spin.js';
 import { getForcedSlotTitles, isForcedRoundResult, resolveHistorySlotTitle } from './history-display.js';
@@ -75,7 +75,9 @@ function renderSidebar(activeView) {
   return `
     <aside class="sidebar surface-metal surface-gold-frame" aria-label="Primary navigation">
       <button type="button" class="wordmark" data-action="nav-slots" aria-label="Soviet Spinners home">
-        <img class="wordmark__logo" src="${LOGO_SRC}" width="164" height="96" alt="Soviet Spinners" />
+        <span class="wordmark__logo-frame">
+          <img class="wordmark__logo" src="${LOGO_SRC}" width="164" height="96" alt="Soviet Spinners" />
+        </span>
       </button>
       <nav>
         <ul class="nav-list">
@@ -214,6 +216,7 @@ function formatRoundTime(timestamp) {
 /** @param {import('../data/types.js').Slot[]} slots */
 function renderMachineHousing(slots, uiState, spinControls) {
   const leverDisabled = spinControls.spinUnfrozenDisabled ? 'disabled' : '';
+  const pulledClass = spinControls.spinLocked ? ' machine-lever--pulled' : '';
 
   return `
     <section class="machine-housing surface-gold-frame" aria-label="Slot machine">
@@ -226,13 +229,17 @@ function renderMachineHousing(slots, uiState, spinControls) {
         </div>
         <button
           type="button"
-          class="machine-lever"
+          class="machine-lever${pulledClass}"
           data-action="spin-unfrozen"
           aria-label="Pull lever to spin unfrozen slots"
           ${leverDisabled}
         >
-          <span class="machine-lever__arm" aria-hidden="true"></span>
-          <span class="machine-lever__knob" aria-hidden="true"></span>
+          <span class="machine-lever__track" aria-hidden="true"></span>
+          <span class="machine-lever__assembly" aria-hidden="true">
+            <span class="machine-lever__arm"></span>
+            <span class="machine-lever__knob"></span>
+          </span>
+          <span class="machine-lever__base" aria-hidden="true"></span>
         </button>
       </div>
       ${renderSpinControls(spinControls)}
@@ -273,15 +280,25 @@ function renderSpinControls(spinControls) {
     ? 'Unfreeze at least one slot with options'
     : `${spinControls.unfrozenDrawable} active slot${spinControls.unfrozenDrawable === 1 ? '' : 's'} will spin`;
 
+  const spinReadyClass = spinUnfrozenAttr ? '' : ' btn--spin--ready';
+
   return `
     <div class="spin-controls">
-      <button type="button" class="btn btn--secondary btn--shuffle" data-action="shuffle-all" ${shuffleAttr}>Shuffle all</button>
-      <button type="button" class="btn btn--spin surface-red-enamel" data-action="spin-unfrozen" ${spinUnfrozenAttr}>
-        <span class="btn--spin__icon" aria-hidden="true">★</span>
-        <span class="btn--spin__label">Spin unfrozen slots</span>
+      <button type="button" class="btn btn--secondary btn--shuffle" data-action="shuffle-all" ${shuffleAttr}>
+        <span class="btn__icon" aria-hidden="true">🔀</span>
+        <span>Shuffle all</span>
+      </button>
+      <button type="button" class="btn btn--spin surface-red-enamel${spinReadyClass}" data-action="spin-unfrozen" ${spinUnfrozenAttr}>
+        <span class="btn--spin__top">
+          <span class="btn--spin__icon" aria-hidden="true">★</span>
+          <span class="btn--spin__label">Spin slots</span>
+        </span>
         <span class="btn--spin__support">${supportText}</span>
       </button>
-      <button type="button" class="btn btn--secondary btn--surprise" data-action="surprise-me" ${surpriseAttr}>Surprise me</button>
+      <button type="button" class="btn btn--secondary btn--surprise" data-action="surprise-me" ${surpriseAttr}>
+        <span class="btn__icon" aria-hidden="true">🎲</span>
+        <span>Surprise me</span>
+      </button>
     </div>
   `;
 }
@@ -299,7 +316,10 @@ function renderEditorSection(slots, uiState, spinLocked) {
           Edit slots &amp; options
           <span class="editor-section__star" aria-hidden="true">★</span>
         </h2>
-        <button type="button" class="btn btn--secondary" data-action="add-slot" ${lockedAttr}>Add slot</button>
+        <button type="button" class="btn btn--primary btn--add-slot" data-action="add-slot" ${lockedAttr}>
+          <span class="btn--add-slot__plus" aria-hidden="true">+</span>
+          <span>Add slot</span>
+        </button>
       </div>
       <div class="slot-editors" id="slot-editors">
         ${slots.map((slot, index) => renderSlotEditor(slot, index, uiState.importSummaries?.[slot.id], spinLocked)).join('')}
@@ -319,12 +339,13 @@ function renderUtilityRail(session, activeCount, spinLocked, activeView) {
 
   return `
     <aside class="utility-rail surface-metal surface-gold-frame${hideOnHistory}" aria-label="Round and slot utilities">
-      <div class="stat-card${roundOverClass}">
+      <span class="utility-rail__star" aria-hidden="true">★</span>
+      <div class="stat-card stat-card--round${roundOverClass}">
         <p class="stat-card__label">Round</p>
         <p class="stat-card__value">${session.currentRound}</p>
         <p class="stat-card__hint">of ${session.totalRounds}</p>
       </div>
-      <div class="stat-card">
+      <div class="stat-card stat-card--total">
         <label class="stat-card__label" for="total-rounds-input">Total rounds</label>
         <input
           id="total-rounds-input"
@@ -351,7 +372,10 @@ function renderUtilityRail(session, activeCount, spinLocked, activeView) {
         </div>
       </div>
       <button type="button" class="btn btn--secondary btn--block" data-action="unlock-all" ${unlockDisabled}>Unlock all</button>
-      <button type="button" class="btn btn--primary btn--block" data-action="add-slot" ${spinLocked ? 'disabled' : ''}>Add slot +</button>
+      <button type="button" class="btn btn--primary btn--block btn--add-slot" data-action="add-slot" ${spinLocked ? 'disabled' : ''}>
+        <span class="btn--add-slot__plus" aria-hidden="true">+</span>
+        <span>Add slot</span>
+      </button>
     </aside>
   `;
 }
@@ -379,44 +403,39 @@ function renderReelCard(slot, index, uiState = {}, spinLocked = false) {
 
   const drumMarkup = renderReelDrumViewport(slot, display, Boolean(spinning), spinTargetLabel);
 
-  const forceSelectOptions = slot.options.length
-    ? slot.options
-        .map(
-          (option) =>
-            `<option value="${escapeAttr(option.id)}">${escapeHtml(option.label)}</option>`,
-        )
-        .join('')
-    : '<option value="">No options</option>';
-
   const freezeLabel = slot.frozen ? '❄ Unfreeze' : '❄ Freeze';
+  const isForced = Boolean(slot.currentResult?.forced);
+  const canPickOption = slot.options.length > 0 && !spinLocked && !spinning;
+  const viewportSelectableClass = canPickOption ? ' reel-card__viewport--selectable' : '';
+
+  const unforceButton = isForced
+    ? `<button type="button" class="reel-card__unforce" data-action="clear-force-select" data-slot-id="${slot.id}" aria-label="Revert forced pick for ${escapeAttr(slot.title)}" title="Revert to normal" ${controlDisabled}>✕</button>`
+    : '';
 
   return `
     <article class="reel-card ${accentClass} ${slot.frozen ? 'reel-card--frozen' : ''}" data-slot-id="${slot.id}">
       ${frozenBadge}
+      ${unforceButton}
       <header class="reel-card__header">
         <span class="reel-card__header-star" aria-hidden="true">★</span>
         ${escapeHtml(slot.title)}
         <span class="reel-card__header-star" aria-hidden="true">★</span>
       </header>
       ${poolMeta}
-      <div class="reel-card__viewport ${display.kind === 'gated-prompt' ? 'reel-card__viewport--gated' : ''}">
+      <div
+        class="reel-card__viewport${viewportSelectableClass} ${display.kind === 'gated-prompt' ? 'reel-card__viewport--gated' : ''}"
+        ${canPickOption ? `data-action="open-force-select" data-slot-id="${slot.id}" role="button" tabindex="0" aria-haspopup="listbox" aria-label="Pick a result for ${escapeAttr(slot.title)}"` : ''}
+      >
         ${drumMarkup}
       </div>
       <div class="reel-card__controls">
         <button
           type="button"
-          class="btn btn--secondary btn--freeze"
+          class="btn btn--secondary btn--freeze btn--block"
           data-action="toggle-freeze"
           data-slot-id="${slot.id}"
           ${controlDisabled}
         >${freezeLabel}</button>
-        <label class="reel-card__force-select">
-          <span class="sr-only">Force select for ${escapeAttr(slot.title)}</span>
-          <select data-action="force-select" data-slot-id="${slot.id}" ${slot.options.length === 0 || spinLocked ? 'disabled' : ''}>
-            <option value="">Force select…</option>
-            ${forceSelectOptions}
-          </select>
-        </label>
       </div>
       ${
         display.kind === 'gated-prompt'
@@ -596,10 +615,11 @@ function renderAddSlotCard(spinLocked = false) {
   const disabledAttr = spinLocked ? 'disabled' : '';
 
   return `
-    <button type="button" class="add-slot-card" data-action="add-slot" ${disabledAttr}>
-      <span class="add-slot-card__star" aria-hidden="true">★</span>
-      <h3 class="add-slot-card__title">Add another slot</h3>
-      <p class="add-slot-card__copy">Create as many slots as you want</p>
+    <button type="button" class="add-slot-card" data-action="add-slot" ${disabledAttr} aria-label="Add another slot">
+      <span class="add-slot-card__icon" aria-hidden="true">
+        <span class="add-slot-card__star">★</span>
+        <span class="add-slot-card__plus">+</span>
+      </span>
     </button>
   `;
 }
@@ -673,6 +693,43 @@ export function renderOptionMenu(slotId, optionId) {
 
 export function closeAllOptionMenus() {
   document.querySelectorAll('.option-row__menu').forEach((menu) => menu.remove());
+}
+
+/**
+ * @param {string} slotId
+ * @param {import('../data/types.js').Option[]} options
+ */
+export function renderForceSelectPopup(slotId, options) {
+  closeAllForceSelectPopups();
+
+  const card = document.querySelector(`.reel-card[data-slot-id="${slotId}"]`);
+  if (!(card instanceof HTMLElement)) {
+    return;
+  }
+
+  const optionsMarkup = options.length
+    ? options
+        .map(
+          (option) =>
+            `<li><button type="button" class="force-select-popup__option" data-action="force-select-option" data-slot-id="${slotId}" data-option-id="${option.id}">${escapeHtml(option.label)}</button></li>`,
+        )
+        .join('')
+    : '<li class="force-select-popup__empty">No options yet</li>';
+
+  const popup = document.createElement('div');
+  popup.className = 'force-select-popup';
+  popup.setAttribute('role', 'listbox');
+  popup.setAttribute('aria-label', 'Pick a result');
+  popup.innerHTML = `
+    <p class="force-select-popup__title">Pick a result</p>
+    <ul class="force-select-popup__list">${optionsMarkup}</ul>
+  `;
+
+  card.appendChild(popup);
+}
+
+export function closeAllForceSelectPopups() {
+  document.querySelectorAll('.force-select-popup').forEach((popup) => popup.remove());
 }
 
 /**

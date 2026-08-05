@@ -1,8 +1,9 @@
 // Application bootstrap and event wiring — Slot Management UI §2–§7.
-// Updated: 2026-08-05 — per-slot eliminate-on-spin checkbox wiring.
+// Updated: 2026-08-05 — lever pull + reel spin sound effects wiring.
 
 import {
   addOption,
+  clearForceSelect,
   commitSpinDraws,
   createSlot,
   deleteOption,
@@ -28,14 +29,17 @@ import {
 import { confirmDialog, initModal, isModalOpen } from './modal.js';
 import {
   beginOptionEdit,
+  closeAllForceSelectPopups,
   closeAllOptionMenus,
   renderAppShell,
+  renderForceSelectPopup,
   renderOptionMenu,
 } from './render.js';
 import { getDeleteSlotMessage, shouldConfirmSlotDelete } from './slot-actions.js';
 import { runSpinAnimation } from './spin-controller.js';
 import { openGatedLaunch } from './launch-gate.js';
 import { toPresentationModeUrl } from './slides-url.js';
+import { playLeverPullSound, playSpinSelectSound, stopSpinSelectSound } from './sound.js';
 import {
   captureScrollState,
   flushDeferredRender,
@@ -145,7 +149,12 @@ async function runAnimatedSpin(includeFrozen) {
   const spinDrawLabels = Object.fromEntries(plan.draws.map((draw) => [draw.slotId, draw.label]));
   scheduleRender({ spinningSlotIds: activeSpinningSlotIds, spinDrawLabels, spinError: null });
 
+  playLeverPullSound();
+  playSpinSelectSound();
+
   await runSpinAnimation(plan.draws, (draws) => {
+    stopSpinSelectSound();
+
     try {
       commitSpinDraws(draws);
       spinErrorMessage = null;
@@ -226,6 +235,38 @@ function handleForceSelect(slotId, optionId) {
     scheduleRender();
   } catch (error) {
     console.debug('[ui] forceSelect failed:', error);
+  }
+}
+
+/**
+ * @param {string} slotId
+ */
+function handleOpenForceSelect(slotId) {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  const slot = getState().slots.find((entry) => entry.id === slotId);
+  if (!slot) {
+    return;
+  }
+
+  renderForceSelectPopup(slotId, slot.options);
+}
+
+/**
+ * @param {string} slotId
+ */
+function handleClearForceSelect(slotId) {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  try {
+    clearForceSelect(slotId);
+    scheduleRender();
+  } catch (error) {
+    console.debug('[ui] clearForceSelect failed:', error);
   }
 }
 
@@ -540,6 +581,7 @@ function bindEvents() {
     const actionElement = target.closest('[data-action]');
     if (!(actionElement instanceof HTMLElement)) {
       closeAllOptionMenus();
+      closeAllForceSelectPopups();
       return;
     }
 
@@ -547,6 +589,10 @@ function bindEvents() {
 
     if (isSpinLocked() && action !== 'dismiss-spin-error') {
       return;
+    }
+
+    if (action !== 'open-force-select' && action !== 'force-select-option') {
+      closeAllForceSelectPopups();
     }
 
     const slotId = actionElement.dataset.slotId;
@@ -627,6 +673,23 @@ function bindEvents() {
           handleRevealSlot(slotId);
         }
         break;
+      case 'open-force-select':
+        if (slotId) {
+          event.stopPropagation();
+          handleOpenForceSelect(slotId);
+        }
+        break;
+      case 'force-select-option':
+        if (slotId && optionId) {
+          handleForceSelect(slotId, optionId);
+          closeAllForceSelectPopups();
+        }
+        break;
+      case 'clear-force-select':
+        if (slotId) {
+          handleClearForceSelect(slotId);
+        }
+        break;
       case 'dismiss-spin-error':
         handleDismissSpinError();
         break;
@@ -658,16 +721,6 @@ function bindEvents() {
 
     const target = event.target;
 
-    if (target instanceof HTMLSelectElement && target.dataset.action === 'force-select') {
-      const slotId = target.dataset.slotId;
-      const optionId = target.value;
-      if (slotId && optionId) {
-        handleForceSelect(slotId, optionId);
-        target.value = '';
-      }
-      return;
-    }
-
     if (!(target instanceof HTMLInputElement)) {
       return;
     }
@@ -695,6 +748,20 @@ function bindEvents() {
     }
 
     const target = event.target;
+
+    if (
+      target instanceof HTMLElement &&
+      target.dataset.action === 'open-force-select' &&
+      (event.key === 'Enter' || event.key === ' ')
+    ) {
+      event.preventDefault();
+      const slotId = target.dataset.slotId;
+      if (slotId) {
+        handleOpenForceSelect(slotId);
+      }
+      return;
+    }
+
     if (!(target instanceof HTMLInputElement)) {
       return;
     }

@@ -502,6 +502,43 @@ export function forceSelect(slotId, optionId) {
 }
 
 /**
+ * Reverts a pending forced pick, returning the option to the live pool.
+ * No-ops on committed rounds since only the pending (uncommitted) result can be undone.
+ * @param {string} slotId
+ */
+export function clearForceSelect(slotId) {
+  const slotIndex = requireSlot(slotId);
+  const slot = state.slots[slotIndex];
+
+  if (!slot.currentResult?.forced) {
+    throw new Error('Slot has no pending forced pick to revert');
+  }
+
+  const { optionId, label } = slot.currentResult;
+  const eliminatedIndex = (slot.eliminatedOptions ?? []).findIndex(
+    (option) => option.id === optionId,
+  );
+
+  const restoredOption =
+    eliminatedIndex === -1
+      ? createOptionEntity(label)
+      : slot.eliminatedOptions[eliminatedIndex];
+
+  if (eliminatedIndex !== -1) {
+    slot.eliminatedOptions = slot.eliminatedOptions.filter((_, index) => index !== eliminatedIndex);
+  }
+
+  slot.options = [...slot.options, restoredOption];
+  slot.currentResult = null;
+  state.currentRoundForcedSlotIds = state.currentRoundForcedSlotIds.filter(
+    (id) => id !== slotId,
+  );
+
+  saveSession();
+  return structuredClone(slot);
+}
+
+/**
  * @param {string} slotId
  */
 export function revealSlot(slotId) {

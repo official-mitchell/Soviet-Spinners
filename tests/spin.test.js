@@ -7,6 +7,7 @@ import { describe, it, beforeEach } from 'node:test';
 import {
   addOption,
   buildSpinPlan,
+  clearForceSelect,
   clearSession,
   commitSpinDraws,
   createMemoryStorage,
@@ -113,6 +114,27 @@ describe('Spin mechanics (§4.1–§4.2)', () => {
     assert.equal(state.slots[0].eliminatedOptions?.length, 1);
     assert.equal(state.slots[0].eliminatedOptions?.[0]?.label, 'One');
     assert.ok(state.currentRoundForcedSlotIds.includes(slot.id));
+  });
+
+  it('clearForceSelect restores the option to the pool and clears the pending result', () => {
+    const slot = getState().slots[0];
+    addOption(slot.id, 'One');
+    addOption(slot.id, 'Two');
+    const optionId = getState().slots[0].options[0].id;
+
+    forceSelect(slot.id, optionId);
+    const restored = clearForceSelect(slot.id);
+
+    assert.equal(restored.currentResult, null);
+    assert.equal(restored.options.length, 2);
+    assert.ok(restored.options.some((option) => option.id === optionId));
+    assert.equal(restored.eliminatedOptions?.length ?? 0, 0);
+    assert.ok(!getState().currentRoundForcedSlotIds.includes(slot.id));
+  });
+
+  it('clearForceSelect throws when the slot has no pending forced pick', () => {
+    const slot = getState().slots[0];
+    assert.throws(() => clearForceSelect(slot.id), /no pending forced pick/);
   });
 
   it('add-option mid-round does not alter an existing drawn result', () => {

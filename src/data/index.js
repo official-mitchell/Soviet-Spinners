@@ -56,6 +56,7 @@ export {
   spinUnfrozen,
   surpriseMe,
   forceSelect,
+  clearForceSelect,
   setSlotFrozen,
   unlockAll,
   setSlotRevealMode,
