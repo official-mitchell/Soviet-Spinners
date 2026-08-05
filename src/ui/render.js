@@ -1,5 +1,5 @@
 // DOM rendering for slot management UI — checklist §2–§7.
-// Updated: 2026-08-05 — gold nav/actions, freeze redesign, reel title span for live sync.
+// Updated: 2026-08-05 — themed eliminate-on-spin checkbox markup.
 
 import { countDrawableSlots } from '../data/spin.js';
 import { getForcedSlotTitles, isForcedRoundResult, resolveHistorySlotTitle } from './history-display.js';
@@ -484,12 +484,13 @@ function renderSlotEditor(slot, index, importSummary, spinLocked = false) {
         <label class="slot-editor__eliminate-toggle">
           <input
             type="checkbox"
-            class="slot-editor__eliminate-checkbox"
+            class="slot-editor__eliminate-checkbox sr-only"
             data-action="toggle-eliminate-on-spin"
             data-slot-id="${slot.id}"
             ${slot.eliminateOnSpin ? 'checked' : ''}
             ${lockedAttr}
           />
+          <span class="slot-editor__eliminate-box" aria-hidden="true"></span>
           <span class="slot-editor__eliminate-label">Eliminate options on spin</span>
         </label>
       </footer>
