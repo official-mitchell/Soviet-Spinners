@@ -1,5 +1,5 @@
 // Session store: Slot/option CRUD, CSV import, spin mechanics, and localStorage persistence.
-// Updated: 2026-08-05 — slotTitle snapshots on round commit; atomic commitSpinDraws rollback.
+// Updated: 2026-08-05 — validated setTotalRounds for §7 round counter panel.
 
 import { DEFAULT_SLOT_TITLE, REVEAL_MODES } from './constants.js';
 import {
@@ -259,8 +259,16 @@ export function importCsvOptions(slotId, csvText) {
 
 /** @param {number} totalRounds */
 export function setTotalRounds(totalRounds) {
-  state.totalRounds = totalRounds;
+  const parsed = Number(totalRounds);
+
+  if (!Number.isFinite(parsed)) {
+    throw new Error('Total rounds must be a number');
+  }
+
+  const normalized = Math.max(1, Math.floor(parsed));
+  state.totalRounds = normalized;
   saveSession();
+  return normalized;
 }
 
 /**
@@ -382,6 +390,9 @@ export function commitSpinDraws(draws) {
         results.push(
           createRoundResult(slot, slot.currentResult.optionId, slot.currentResult.label),
         );
+        if (!forcedSlotIds.includes(slot.id)) {
+          forcedSlotIds.push(slot.id);
+        }
         continue;
       }
 

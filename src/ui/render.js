@@ -1,7 +1,8 @@
-// DOM rendering for slot management UI — checklist §2–§5.
-// Updated: 2026-08-05 — design system surfaces, reel drums, Slots/History nav views.
+// DOM rendering for slot management UI — checklist §2–§7.
+// Updated: 2026-08-05 — history title snapshots, round-over-target hint.
 
 import { countDrawableSlots } from '../data/spin.js';
+import { getForcedSlotTitles, isForcedRoundResult, resolveHistorySlotTitle } from './history-display.js';
 import { renderReelDrumViewport } from './reel-drum.js';
 import { getReelDisplayState } from './reveal.js';
 
@@ -139,20 +140,31 @@ function renderHistoryView(session) {
     .map((round) => {
       const summary = round.results
         .map((result) => {
-          const slot = slotById.get(result.slotId);
-          const forced = round.forcedSlotIds.includes(result.slotId);
+          const forced = isForcedRoundResult(round, result.slotId);
           const label = result.label ?? 'Unknown';
-          const title = result.slotTitle ?? slot?.title ?? 'Slot';
+          const title = resolveHistorySlotTitle(result, slotById);
           const forcedClass = forced ? ' history-table__entry--forced' : '';
           const prefix = forced ? '⚡ ' : '';
           return `<span class="history-table__entry${forcedClass}">${prefix}${escapeHtml(title)}: ${escapeHtml(label)}</span>`;
         })
         .join(' · ');
 
+      const forcedTitles = getForcedSlotTitles(round, slotById);
+      const forcedBadges =
+        forcedTitles.length > 0
+          ? forcedTitles
+              .map(
+                (title) =>
+                  `<span class="history-table__forced-badge">⚡ ${escapeHtml(title)}</span>`,
+              )
+              .join('')
+          : '<span class="history-table__forced-badge history-table__forced-badge--none">—</span>';
+
       return `
         <tr>
           <th scope="row">Round ${round.roundNumber}</th>
           <td class="history-table__results">${summary}</td>
+          <td class="history-table__flags">${forcedBadges}</td>
           <td class="history-table__time">${formatRoundTime(round.timestamp)}</td>
         </tr>
       `;
@@ -166,6 +178,7 @@ function renderHistoryView(session) {
           <tr>
             <th scope="col">Round</th>
             <th scope="col">Results</th>
+            <th scope="col">Forced</th>
             <th scope="col">Time</th>
           </tr>
         </thead>
@@ -264,16 +277,29 @@ function renderUtilityRail(session, activeCount, spinLocked, activeView) {
   const frozenCount = session.slots.filter((slot) => slot.frozen).length;
   const unlockDisabled = frozenCount === 0 || spinLocked ? 'disabled' : '';
   const hideOnHistory = activeView === 'history' ? ' utility-rail--history' : '';
+  const roundOverClass =
+    session.currentRound > session.totalRounds ? ' stat-card--over-target' : '';
 
   return `
     <aside class="utility-rail${hideOnHistory}" aria-label="Round and slot utilities">
-      <div class="stat-card">
+      <div class="stat-card${roundOverClass}">
         <p class="stat-card__label">Round</p>
         <p class="stat-card__value">${session.currentRound}</p>
+        <p class="stat-card__hint">of ${session.totalRounds}</p>
       </div>
       <div class="stat-card">
-        <p class="stat-card__label">Total rounds</p>
-        <p class="stat-card__value">${session.totalRounds}</p>
+        <label class="stat-card__label" for="total-rounds-input">Total rounds</label>
+        <input
+          id="total-rounds-input"
+          class="stat-card__input"
+          type="number"
+          min="1"
+          step="1"
+          inputmode="numeric"
+          value="${session.totalRounds}"
+          data-action="edit-total-rounds"
+          ${spinLocked ? 'disabled' : ''}
+        />
       </div>
       <div class="stat-row">
         <div class="stat-chip stat-chip--active">

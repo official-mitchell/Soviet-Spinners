@@ -1,5 +1,5 @@
-/* App layout and components — Soviet Spinners §2–§5 visual system */
-/* Updated: 2026-08-05 — tokens, reel drums, history panel, machine housing */
+/* App layout and components — Soviet Spinners §2–§7 visual system */
+/* Updated: 2026-08-05 — editable total rounds input, history forced badges */
 
 .app-shell {
   display: grid;
@@ -546,6 +546,30 @@
   color: var(--text-success);
 }
 
+.history-table__flags {
+  white-space: nowrap;
+}
+
+.history-table__forced-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-right: var(--space-2);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-xs);
+  border: var(--border-hairline) solid rgba(121, 215, 146, 0.35);
+  background: rgba(27, 98, 54, 0.25);
+  color: var(--text-success);
+  font-size: var(--type-caption);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.history-table__forced-badge--none {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-muted);
+}
+
 .history-table__time {
   color: var(--text-muted);
   white-space: nowrap;
@@ -905,6 +929,48 @@
   font-family: var(--font-display);
   font-size: 32px;
   color: var(--text-gold);
+}
+
+.stat-card__hint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--type-caption);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.stat-card--over-target .stat-card__value,
+.stat-card--over-target .stat-card__hint {
+  color: var(--text-warning, #f0c27a);
+}
+
+.stat-card__input {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-display);
+  font-size: 32px;
+  color: var(--text-gold);
+  appearance: textfield;
+}
+
+.stat-card__input:focus {
+  outline: none;
+  text-shadow: 0 0 12px rgba(235, 207, 123, 0.35);
+}
+
+.stat-card__input:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.stat-card__input::-webkit-outer-spin-button,
+.stat-card__input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
 }
 
 .stat-row {

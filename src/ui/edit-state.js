@@ -1,11 +1,11 @@
 // Tracks inline edits and scroll position across re-renders — review follow-up.
-// Created: 2026-08-05.
+// Updated: 2026-08-05 — defer render while editing total rounds.
 
 /**
  * @returns {boolean}
  */
 export function shouldDeferRender() {
-  return hasInlineOptionEdit() || hasFocusedSlotTitleEdit();
+  return hasInlineOptionEdit() || hasFocusedSlotTitleEdit() || hasFocusedTotalRoundsEdit();
 }
 
 /**
@@ -13,6 +13,14 @@ export function shouldDeferRender() {
  */
 export function hasInlineOptionEdit() {
   return document.querySelector('.option-row__label-input') instanceof HTMLInputElement;
+}
+
+/**
+ * @returns {boolean}
+ */
+export function hasFocusedTotalRoundsEdit() {
+  const active = document.activeElement;
+  return active instanceof HTMLInputElement && active.dataset.action === 'edit-total-rounds';
 }
 
 /**

@@ -1,0 +1,63 @@
+/* Full-viewport gated launch interstitial — checklist §6.1 */
+/* Created: 2026-08-05 */
+
+.launch-shell {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(235, 207, 123, 0.08), transparent 42%),
+    linear-gradient(180deg, var(--bg-canvas) 0%, #120f0d 100%);
+  color: var(--text-primary);
+}
+
+.launch-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  min-height: 100vh;
+  padding: var(--space-8);
+  text-align: center;
+}
+
+.launch-stage__brand {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 42px);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-gold);
+  text-shadow: 0 0 24px rgba(235, 207, 123, 0.25);
+}
+
+.launch-stage__countdown {
+  display: grid;
+  place-items: center;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 2px solid var(--border-gold);
+  box-shadow: var(--glow-gold), inset 0 0 0 1px rgba(235, 207, 123, 0.12);
+  font-family: var(--font-display);
+  font-size: 56px;
+  line-height: 1;
+  color: var(--text-gold);
+}
+
+.launch-stage__status {
+  margin: 0;
+  max-width: 28rem;
+  font-family: var(--font-body);
+  font-size: var(--type-body-lg);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.launch-stage--error .launch-stage__countdown {
+  display: none;
+}
+
+.launch-stage--error .launch-stage__status {
+  color: var(--text-danger, #f2a3a3);
+}

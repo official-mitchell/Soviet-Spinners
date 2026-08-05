@@ -1,5 +1,5 @@
-// Application bootstrap and event wiring — Slot Management UI §2–§4.
-// Updated: 2026-08-05 — spin lock, atomic commit errors, preserved spinning state.
+// Application bootstrap and event wiring — Slot Management UI §2–§7.
+// Updated: 2026-08-05 — editable total rounds in utility rail.
 
 import {
   addOption,
@@ -17,6 +17,7 @@ import {
   reorderSlots,
   revealSlot,
   setSlotFrozen,
+  setTotalRounds,
   shuffleAll,
   toggleOptionHighlight,
   unlockAll,
@@ -32,6 +33,8 @@ import {
 } from './render.js';
 import { getDeleteSlotMessage, shouldConfirmSlotDelete } from './slot-actions.js';
 import { runSpinAnimation } from './spin-controller.js';
+import { openGatedLaunch } from './launch-gate.js';
+import { toPresentationModeUrl } from './slides-url.js';
 import {
   captureScrollState,
   flushDeferredRender,
@@ -62,6 +65,9 @@ let spinErrorMessage = null;
 
 const SPIN_FAILURE_MESSAGE =
   'The spin could not be completed. Your previous results were preserved.';
+
+const LAUNCH_FAILURE_MESSAGE =
+  'Could not launch the deck. Use a valid Google Slides link and allow pop-ups.';
 
 /** @returns {boolean} */
 function isSpinLocked() {
@@ -231,10 +237,21 @@ function handleRevealSlot(slotId) {
   }
 
   try {
+    const slot = getState().slots.find((entry) => entry.id === slotId);
+
+    if (!slot?.currentResult) {
+      throw new Error('No result to reveal');
+    }
+
+    const presentationUrl = toPresentationModeUrl(slot.currentResult.label);
+    openGatedLaunch(presentationUrl);
     revealSlot(slotId);
-    scheduleRender();
+    spinErrorMessage = null;
+    scheduleRender({ spinError: null });
   } catch (error) {
-    console.debug('[ui] revealSlot failed:', error);
+    spinErrorMessage = LAUNCH_FAILURE_MESSAGE;
+    console.debug('[ui] reveal launch failed:', error);
+    scheduleRender({ spinError: spinErrorMessage });
   }
 }
 
@@ -327,6 +344,29 @@ function handleSlotTitleChange(slotId, title) {
 
   updateSlotTitle(slotId, trimmed);
   scheduleRender();
+}
+
+/**
+ * @param {string} rawValue
+ */
+function handleTotalRoundsChange(rawValue) {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  const trimmed = rawValue.trim();
+  if (!trimmed) {
+    scheduleRender();
+    return;
+  }
+
+  try {
+    setTotalRounds(trimmed);
+    scheduleRender();
+  } catch (error) {
+    console.debug('[ui] setTotalRounds failed:', error);
+    scheduleRender();
+  }
 }
 
 /**
@@ -640,6 +680,11 @@ function bindEvents() {
 
     if (target.dataset.action === 'edit-slot-title' && target.dataset.slotId) {
       handleSlotTitleChange(target.dataset.slotId, target.value);
+      return;
+    }
+
+    if (target.dataset.action === 'edit-total-rounds') {
+      handleTotalRoundsChange(target.value);
     }
   });
 
@@ -660,6 +705,12 @@ function bindEvents() {
         handleAddOption(slotId, target.value);
         target.value = '';
       }
+    }
+
+    if (target.dataset.action === 'edit-total-rounds' && event.key === 'Enter') {
+      event.preventDefault();
+      handleTotalRoundsChange(target.value);
+      target.blur();
     }
 
     if (target.dataset.action === 'commit-option-edit') {
