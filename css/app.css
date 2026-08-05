@@ -1,5 +1,5 @@
 /* App layout and components — Soviet Spinners §2–§7 visual system */
-/* Updated: 2026-08-05 — themed eliminate-on-spin checkbox styling */
+/* Updated: 2026-08-05 — reel label fix, shimmer, button polish, handle z-index */
 
 .app-shell {
   display: grid;
@@ -118,6 +118,9 @@
   flex-direction: column;
   gap: var(--space-6);
   min-width: 0;
+  position: relative;
+  z-index: 4;
+  overflow: visible;
 }
 
 .page-header {
@@ -197,6 +200,7 @@
   padding: var(--space-5);
   box-shadow: var(--shadow-panel), var(--glow-gold), var(--surface-metal-shadow);
   position: relative;
+  overflow: visible;
 }
 
 .machine-housing::before {
@@ -226,7 +230,7 @@
   align-items: stretch;
   gap: var(--space-4);
   position: relative;
-  isolation: isolate;
+  overflow: visible;
 }
 
 .machine-housing__reels {
@@ -241,7 +245,7 @@
 
 .machine-handle {
   position: relative;
-  z-index: 10;
+  z-index: 30;
   flex: 0 0 108px;
   align-self: stretch;
   width: 108px;
@@ -757,10 +761,16 @@
   text-align: center;
   font-size: var(--type-reel-preview);
   font-weight: 700;
-  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   isolation: isolate;
+}
+
+.reel-drum__cell-label {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  line-height: 1.1;
 }
 
 .reel-drum__cell::before {
@@ -783,9 +793,66 @@
 }
 
 .reel-drum__cell--preview {
-  opacity: 0.92;
   font-size: var(--type-reel-preview);
+}
+
+.reel-drum__cell--preview .reel-drum__cell-label {
   color: var(--gold-200);
+  opacity: 0.52;
+}
+
+.reel-drum__cell--selected {
+  opacity: 1;
+  font-size: var(--type-reel-result);
+}
+
+.reel-drum__cell--selected .reel-drum__cell-label {
+  font-family: var(--font-display);
+  font-size: var(--type-reel-result);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: linear-gradient(180deg, var(--gold-050) 0%, var(--gold-200) 55%, var(--gold-400) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
+}
+
+.reel-drum__cell--selected::after {
+  content: '';
+  position: absolute;
+  inset: 5px 10px;
+  z-index: 0;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    110deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent 62%
+  );
+  background-size: 220% 100%;
+  background-position: 130% 0;
+  animation: reel-card-shimmer 4.2s ease-in-out infinite;
+  animation-delay: var(--shimmer-delay, 0s);
+  pointer-events: none;
+}
+
+@keyframes reel-card-shimmer {
+  0%,
+  72%,
+  100% {
+    background-position: 130% 0;
+    opacity: 0;
+  }
+
+  18% {
+    opacity: 1;
+  }
+
+  36% {
+    background-position: -30% 0;
+    opacity: 0;
+  }
 }
 
 .reel-drum__cell--preview::before {
@@ -798,19 +865,6 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 3px 8px rgba(0, 0, 0, 0.32);
-}
-
-.reel-drum__cell--selected {
-  opacity: 1;
-  font-family: var(--font-display);
-  font-size: var(--type-reel-result);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  background: linear-gradient(180deg, var(--gold-050) 0%, var(--gold-200) 55%, var(--gold-400) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.35)) drop-shadow(0 0 18px rgba(248, 231, 173, 0.3));
 }
 
 .reel-drum__cell--selected::before {
@@ -829,8 +883,12 @@
 }
 
 .reel-drum__cell--spin {
-  opacity: 0.72;
   font-size: var(--type-reel-preview);
+}
+
+.reel-drum__cell--spin .reel-drum__cell-label {
+  opacity: 0.58;
+  color: var(--gold-200);
 }
 
 .reel-drum__cell--spin::before {
@@ -841,13 +899,13 @@
   );
 }
 
-.reel-drum__cell--masked {
+.reel-drum__cell--masked .reel-drum__cell-label {
   opacity: 0.72;
   color: var(--text-muted);
   letter-spacing: 0.18em;
 }
 
-.reel-drum__cell--forced {
+.reel-drum__cell--forced .reel-drum__cell-label {
   color: var(--text-success);
   text-shadow: 0 0 12px rgba(121, 215, 146, 0.35);
 }
@@ -860,7 +918,7 @@
     0 0 14px rgba(201, 237, 255, 0.2);
 }
 
-.reel-card--frozen .reel-drum__cell--selected {
+.reel-card--frozen .reel-drum__cell--selected .reel-drum__cell-label {
   background: linear-gradient(180deg, var(--ice-050) 0%, var(--ice-200) 55%, var(--ice-400) 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -902,12 +960,12 @@
 
 .reel-drum__marker-triangle--left {
   left: 8px;
-  clip-path: polygon(0 50%, 100% 0, 100% 100%);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
 .reel-drum__marker-triangle--right {
   right: 8px;
-  clip-path: polygon(100% 50%, 0 0, 0 100%);
+  clip-path: polygon(100% 0, 0 50%, 100% 100%);
 }
 
 .reel-drum--spinning .reel-drum__marker {
@@ -923,7 +981,7 @@
     0 0 18px rgba(215, 38, 46, 0.65);
 }
 
-.reel-drum--settled .reel-drum__cell--selected {
+.reel-drum--settled .reel-drum__cell--selected .reel-drum__cell-label {
   animation: reel-result-pulse var(--motion-emphasis) var(--ease-settle);
 }
 
@@ -968,14 +1026,13 @@
   min-height: 44px;
   padding: 0 var(--space-4);
   gap: var(--space-2);
+  border: none;
   background: linear-gradient(180deg, var(--red-600) 0%, var(--red-800) 100%);
-  border: var(--border-medium) solid var(--border-gold);
-  box-shadow: var(--shadow-button), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .btn--freeze:hover:not(:disabled) {
   background: linear-gradient(180deg, var(--red-500) 0%, var(--red-700) 100%);
-  border-color: var(--border-gold-highlight);
 }
 
 .btn--freeze__icon {
@@ -992,12 +1049,11 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  background: linear-gradient(180deg, var(--gold-050) 0%, var(--gold-200) 55%, var(--gold-400) 100%);
+  background: linear-gradient(180deg, var(--gold-050) 0%, var(--gold-300) 55%, var(--gold-500) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  -webkit-text-stroke: 0.75px rgba(44, 28, 7, 0.45);
-  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
 }
 
 .reel-card__reveal {
@@ -1043,27 +1099,26 @@
   min-height: 64px;
   padding: var(--space-3) var(--space-6);
   gap: var(--space-3);
-  background: var(--bg-brand);
-  border: var(--border-medium) solid var(--border-gold);
+  border: none;
   border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, var(--red-500) 0%, var(--red-700) 52%, var(--red-800) 100%);
   color: var(--text-on-brand);
-  box-shadow: var(--shadow-button), var(--glow-red), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   transition: transform var(--motion-fast) var(--ease-standard),
     background var(--motion-fast) var(--ease-standard),
     box-shadow var(--motion-fast) var(--ease-standard);
 }
 
 .btn--spin:hover:not(:disabled) {
-  background: var(--bg-brand-hover);
-  border-color: var(--border-gold-highlight);
+  background: linear-gradient(180deg, var(--red-400) 0%, var(--red-600) 52%, var(--red-700) 100%);
   transform: translateY(-1px);
-  box-shadow: var(--shadow-button), 0 0 28px rgba(215, 38, 46, 0.45);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .btn--spin:active:not(:disabled) {
   transform: translateY(1px);
-  background: var(--bg-brand-pressed);
-  box-shadow: var(--shadow-button);
+  background: linear-gradient(180deg, var(--red-700) 0%, var(--red-800) 100%);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .btn--spin__icon {
@@ -1080,28 +1135,27 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  background: linear-gradient(180deg, var(--gold-100) 0%, var(--gold-300) 48%, var(--gold-500) 100%);
+  background: linear-gradient(180deg, var(--gold-050) 0%, var(--gold-300) 50%, var(--gold-600) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.5)) drop-shadow(0 0 14px rgba(248, 231, 173, 0.35));
-  paint-order: stroke fill;
-  -webkit-text-stroke: 1px rgba(44, 28, 7, 0.45);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
 }
 
 .btn--spin--ready {
-  animation: spin-ready-glow 2.2s ease-in-out infinite;
+  animation: spin-ready-pulse 3.2s ease-in-out infinite;
 }
 
-@keyframes spin-ready-glow {
+@keyframes spin-ready-pulse {
   0%,
   100% {
-    box-shadow: var(--shadow-button), var(--glow-red), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 18px rgba(215, 38, 46, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
 
   50% {
-    box-shadow: var(--shadow-button), 0 0 34px rgba(215, 38, 46, 0.65),
-      0 0 12px rgba(235, 207, 123, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 0 28px rgba(215, 38, 46, 0.42),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
   }
 }
 
@@ -1754,6 +1808,7 @@
   padding: var(--space-5) var(--space-4) var(--space-4);
   border-radius: var(--radius-lg);
   position: relative;
+  z-index: 1;
 }
 
 .utility-rail::after {
@@ -1995,15 +2050,15 @@
 }
 
 .btn--gold-action {
-  background: linear-gradient(180deg, var(--gold-700), var(--gold-800));
-  border-color: var(--border-gold);
+  border: none;
+  background: linear-gradient(180deg, var(--gold-600) 0%, var(--gold-700) 48%, var(--gold-800) 100%);
   min-height: 48px;
   padding: 0 var(--space-5);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .btn--gold-action:hover:not(:disabled) {
-  background: linear-gradient(180deg, var(--gold-600), var(--gold-700));
-  border-color: var(--border-gold-highlight);
+  background: linear-gradient(180deg, var(--gold-500) 0%, var(--gold-600) 48%, var(--gold-700) 100%);
 }
 
 .btn--gold-action__label {
@@ -2012,32 +2067,31 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  background: linear-gradient(180deg, var(--gold-050) 0%, var(--gold-200) 50%, var(--gold-400) 100%);
+  background: linear-gradient(180deg, var(--gold-050) 0%, var(--gold-300) 50%, var(--gold-500) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  -webkit-text-stroke: 0.75px rgba(44, 28, 7, 0.45);
-  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
 }
 
 .btn--shuffle {
-  background: linear-gradient(180deg, var(--gold-700), var(--gold-800));
-  border-color: var(--border-gold);
+  background: linear-gradient(180deg, var(--gold-600) 0%, var(--gold-700) 48%, var(--gold-800) 100%);
+  border: none;
   color: var(--gold-100);
 }
 
 .btn--shuffle:hover:not(:disabled) {
-  background: linear-gradient(180deg, var(--gold-600), var(--gold-700));
+  background: linear-gradient(180deg, var(--gold-500) 0%, var(--gold-600) 48%, var(--gold-700) 100%);
 }
 
 .btn--surprise {
-  background: linear-gradient(180deg, var(--gold-700), var(--gold-800));
-  border-color: var(--border-gold);
+  background: linear-gradient(180deg, var(--gold-600) 0%, var(--gold-700) 48%, var(--gold-800) 100%);
+  border: none;
   color: var(--gold-100);
 }
 
 .btn--surprise:hover:not(:disabled) {
-  background: linear-gradient(180deg, var(--gold-600), var(--gold-700));
+  background: linear-gradient(180deg, var(--gold-500) 0%, var(--gold-600) 48%, var(--gold-700) 100%);
 }
 
 .btn--danger {

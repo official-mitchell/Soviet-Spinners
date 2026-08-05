@@ -1,5 +1,5 @@
 // DOM rendering for slot management UI — checklist §2–§7.
-// Updated: 2026-08-05 — themed eliminate-on-spin checkbox markup.
+// Updated: 2026-08-05 — per-reel shimmer delay on option cards.
 
 import { countDrawableSlots } from '../data/spin.js';
 import { getForcedSlotTitles, isForcedRoundResult, resolveHistorySlotTitle } from './history-display.js';
@@ -385,7 +385,7 @@ function renderReelCard(slot, index, uiState = {}, spinLocked = false) {
     : '';
 
   return `
-    <article class="reel-card ${accentClass} ${slot.frozen ? 'reel-card--frozen' : ''}" data-slot-id="${slot.id}">
+    <article class="reel-card ${accentClass} ${slot.frozen ? 'reel-card--frozen' : ''}" data-slot-id="${slot.id}" style="--shimmer-delay: ${(index * 0.83 + 0.17).toFixed(2)}s">
       ${frozenBadge}
       ${unforceButton}
       <header class="reel-card__header">

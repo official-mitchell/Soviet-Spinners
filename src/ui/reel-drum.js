@@ -1,5 +1,5 @@
 // Vertical reel drum markup and transform-based spin animation — checklist §5.2.
-// Updated: 2026-08-05 — center marker triangles + brass-framed drum viewport.
+// Updated: 2026-08-05 — cell label span for gradient text rendering.
 
 import { REVEAL_MODES } from '../data/constants.js';
 import { SPIN_SEQUENCE_MS } from './sound.js';
@@ -114,7 +114,7 @@ export function buildSpinStripLabels(slot, targetLabel) {
  */
 function renderDrumCell(label, variant = 'preview', options = {}) {
   const forcedClass = options.forced ? ' reel-drum__cell--forced' : '';
-  return `<div class="reel-drum__cell reel-drum__cell--${variant}${forcedClass}">${escapeHtml(label)}</div>`;
+  return `<div class="reel-drum__cell reel-drum__cell--${variant}${forcedClass}"><span class="reel-drum__cell-label">${escapeHtml(label)}</span></div>`;
 }
 
 function renderDrumMarker() {
