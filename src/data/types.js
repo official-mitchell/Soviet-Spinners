@@ -27,6 +27,7 @@
  * @property {Option[]} options
  * @property {Option[]} [eliminatedOptions]
  * @property {boolean} frozen
+ * @property {boolean} eliminateOnSpin
  * @property {RevealMode} revealMode
  * @property {number} order
  * @property {SlotResult | null} [currentResult]

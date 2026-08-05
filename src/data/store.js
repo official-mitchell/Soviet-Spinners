@@ -1,5 +1,5 @@
 // Session store: Slot/option CRUD, CSV import, spin mechanics, and localStorage persistence.
-// Updated: 2026-08-05 — eliminate options from pool after selection; track eliminatedOptions.
+// Updated: 2026-08-05 — per-slot eliminateOnSpin toggle for spin draws.
 
 import { DEFAULT_SLOT_TITLE, REVEAL_MODES } from './constants.js';
 import {
@@ -313,6 +313,16 @@ export function setSlotRevealMode(slotId, revealMode) {
   saveSession();
 }
 
+/**
+ * @param {string} slotId
+ * @param {boolean} eliminateOnSpin
+ */
+export function setSlotEliminateOnSpin(slotId, eliminateOnSpin) {
+  const index = requireSlot(slotId);
+  state.slots[index] = { ...state.slots[index], eliminateOnSpin };
+  saveSession();
+}
+
 export function shuffleAll() {
   state.slots = state.slots.map((slot) => ({
     ...slot,
@@ -382,7 +392,12 @@ export function commitSpinDraws(draws) {
     }
 
     for (const { slotIndex, optionIndex, draw, revealMode } of validatedDraws) {
-      eliminateOption(slotIndex, optionIndex);
+      const slot = state.slots[slotIndex];
+
+      if (slot.eliminateOnSpin) {
+        eliminateOption(slotIndex, optionIndex);
+      }
+
       state.slots[slotIndex].currentResult = {
         optionId: draw.optionId,
         label: draw.label,

@@ -59,6 +59,7 @@ export {
   setSlotFrozen,
   unlockAll,
   setSlotRevealMode,
+  setSlotEliminateOnSpin,
   revealSlot,
 } from './store.js';
 

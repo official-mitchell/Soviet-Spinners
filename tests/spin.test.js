@@ -19,6 +19,7 @@ import {
   loadSession,
   planSpin,
   setSlotFrozen,
+  setSlotEliminateOnSpin,
   setSlotRevealMode,
   setStorageBackend,
   shuffleAll,
@@ -34,12 +35,13 @@ describe('Spin mechanics (§4.1–§4.2)', () => {
     loadSession();
   });
 
-  it('spinUnfrozen skips frozen slots and removes drawn options from pool', () => {
+  it('spinUnfrozen skips frozen slots and removes drawn options from pool when eliminateOnSpin is enabled', () => {
     const active = createSlot('Active');
     const frozen = createSlot('Frozen');
     addOption(active.id, 'Active pick');
     addOption(frozen.id, 'Frozen pick');
     setSlotFrozen(frozen.id, true);
+    setSlotEliminateOnSpin(active.id, true);
 
     spinUnfrozen();
 
@@ -54,10 +56,24 @@ describe('Spin mechanics (§4.1–§4.2)', () => {
     assert.equal(getRoundHistory().length, 1);
   });
 
+  it('spinUnfrozen keeps drawn options in the pool when eliminateOnSpin is disabled', () => {
+    const slot = getState().slots[0];
+    addOption(slot.id, 'Alpha');
+    addOption(slot.id, 'Beta');
+
+    spinUnfrozen();
+
+    const updated = getState().slots[0];
+    assert.equal(updated.options.length, 2);
+    assert.equal(updated.eliminatedOptions?.length ?? 0, 0);
+    assert.ok(updated.currentResult);
+  });
+
   it('surpriseMe spins frozen slots without changing frozen flags', () => {
     const slot = getState().slots[0];
     addOption(slot.id, 'Only option');
     setSlotFrozen(slot.id, true);
+    setSlotEliminateOnSpin(slot.id, true);
 
     surpriseMe();
 
@@ -102,6 +118,7 @@ describe('Spin mechanics (§4.1–§4.2)', () => {
   it('add-option mid-round does not alter an existing drawn result', () => {
     const slot = getState().slots[0];
     addOption(slot.id, 'Drawn');
+    setSlotEliminateOnSpin(slot.id, true);
     spinUnfrozen();
 
     const before = getState().slots[0].currentResult;
@@ -118,6 +135,7 @@ describe('Spin mechanics (§4.1–§4.2)', () => {
     const slotB = createSlot('Second');
     addOption(slotA.id, 'Forced');
     addOption(slotB.id, 'Spun');
+    setSlotEliminateOnSpin(slotB.id, true);
     const forcedOptionId = getState().slots[0].options[0].id;
 
     forceSelect(slotA.id, forcedOptionId);
@@ -181,6 +199,8 @@ describe('Spin mechanics (§4.1–§4.2)', () => {
     const spinner = createSlot('Spinner');
     addOption(carried.id, 'Carried pick');
     addOption(spinner.id, 'Fresh pick');
+    setSlotEliminateOnSpin(carried.id, true);
+    setSlotEliminateOnSpin(spinner.id, true);
 
     spinUnfrozen();
     setSlotFrozen(carried.id, true);

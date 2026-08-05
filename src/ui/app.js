@@ -1,5 +1,5 @@
 // Application bootstrap and event wiring — Slot Management UI §2–§7.
-// Updated: 2026-08-05 — editable total rounds in utility rail.
+// Updated: 2026-08-05 — per-slot eliminate-on-spin checkbox wiring.
 
 import {
   addOption,
@@ -17,6 +17,7 @@ import {
   reorderSlots,
   revealSlot,
   setSlotFrozen,
+  setSlotEliminateOnSpin,
   setTotalRounds,
   shuffleAll,
   toggleOptionHighlight,
@@ -756,6 +757,22 @@ function bindEvents() {
       handleOptionEdit(slotId, optionId, target.value, option?.label ?? '');
     }
   }, true);
+
+  document.addEventListener('change', (event) => {
+    if (isSpinLocked() || isModalOpen()) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) {
+      return;
+    }
+
+    if (target.dataset.action === 'toggle-eliminate-on-spin' && target.dataset.slotId) {
+      setSlotEliminateOnSpin(target.dataset.slotId, target.checked);
+      scheduleRender();
+    }
+  });
 
   document.addEventListener('dragstart', (event) => {
     if (isSpinLocked()) {

@@ -1,5 +1,5 @@
 // Entity factories, default session shape, and normalization on load.
-// Updated: 2026-08-05 — eliminatedOptions tracking and history backfill.
+// Updated: 2026-08-05 — per-slot eliminateOnSpin flag (default false).
 
 import {
   DEFAULT_SLOT_TITLE,
@@ -36,6 +36,7 @@ export function createSlotEntity(title = DEFAULT_SLOT_TITLE, order = 0) {
     options: [],
     eliminatedOptions: [],
     frozen: false,
+    eliminateOnSpin: false,
     revealMode: REVEAL_MODES.IMMEDIATE,
     order,
   };
@@ -139,6 +140,7 @@ function normalizeSlot(raw, index) {
     options,
     eliminatedOptions,
     frozen: Boolean(slot.frozen),
+    eliminateOnSpin: Boolean(slot.eliminateOnSpin),
     revealMode:
       slot.revealMode === REVEAL_MODES.GATED
         ? REVEAL_MODES.GATED

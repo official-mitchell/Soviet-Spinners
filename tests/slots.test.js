@@ -28,6 +28,7 @@ describe('Slot entity (§1.1)', () => {
 
     assert.equal(slot.title, 'New Slot');
     assert.equal(slot.frozen, false);
+    assert.equal(slot.eliminateOnSpin, false);
     assert.equal(slot.revealMode, 'immediate');
     assert.deepEqual(slot.options, []);
     assert.equal(typeof slot.id, 'string');

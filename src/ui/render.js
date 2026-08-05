@@ -1,12 +1,22 @@
 // DOM rendering for slot management UI — checklist §2–§7.
-// Updated: 2026-08-05 — eliminated options panel per slot editor.
+// Updated: 2026-08-05 — mock-aligned visual polish: logo, machine housing, reel enamel, editor stars.
 
 import { countDrawableSlots } from '../data/spin.js';
 import { getForcedSlotTitles, isForcedRoundResult, resolveHistorySlotTitle } from './history-display.js';
 import { renderReelDrumViewport } from './reel-drum.js';
 import { getReelDisplayState } from './reveal.js';
 
-const ACCENT_CLASSES = ['slot-editor--accent-red', 'slot-editor--accent-gold', 'slot-editor--accent-metal'];
+const LOGO_SRC = 'src/Soviet Spinners Logo.png';
+const SLOT_ACCENTS = ['accent-red', 'accent-gold', 'accent-ice'];
+const ACCENT_CLASSES = SLOT_ACCENTS.map((accent) => `slot-editor--${accent}`);
+
+/**
+ * @param {number} index
+ * @param {string} prefix
+ */
+function slotAccentClass(index, prefix) {
+  return `${prefix}--${SLOT_ACCENTS[index % SLOT_ACCENTS.length]}`;
+}
 
 /**
  * @param {import('../data/types.js').SessionState} session
@@ -63,21 +73,14 @@ export function renderAppShell(session, uiState = {}) {
 /** @param {'slots' | 'history'} activeView */
 function renderSidebar(activeView) {
   return `
-    <aside class="sidebar surface-metal" aria-label="Primary navigation">
-      <div class="wordmark">
-        <span class="wordmark__star" aria-hidden="true">★</span>
-        <div class="wordmark__text">
-          <span class="wordmark__primary">SOVIET</span>
-          <span class="wordmark__secondary">SPINNERS</span>
-        </div>
-      </div>
+    <aside class="sidebar surface-metal surface-gold-frame" aria-label="Primary navigation">
+      <button type="button" class="wordmark" data-action="nav-slots" aria-label="Soviet Spinners home">
+        <img class="wordmark__logo" src="${LOGO_SRC}" width="164" height="96" alt="Soviet Spinners" />
+      </button>
       <nav>
         <ul class="nav-list">
           <li>${renderNavItem('slots', '▣', 'Slots', activeView)}</li>
           <li>${renderNavItem('history', '◷', 'History', activeView)}</li>
-          <li>${renderNavItem('templates', '▤', 'Templates', activeView, true)}</li>
-          <li>${renderNavItem('my-games', '★', 'My Games', activeView, true)}</li>
-          <li>${renderNavItem('settings', '⚙', 'Settings', activeView, true)}</li>
         </ul>
       </nav>
     </aside>
@@ -111,14 +114,29 @@ function renderPageHeader(activeView) {
   const subtitle =
     activeView === 'history'
       ? 'Append-only log of completed rounds'
-      : 'Edit slots, options, and spin controls';
+      : 'Pick your presenters, decks, and wildcard in style.';
 
   return `
     <header class="page-header">
-      <div>
-        <h1 class="page-header__title">${title}</h1>
+      <div class="page-header__copy">
+        <h1 class="page-header__title">
+          <span class="page-header__star" aria-hidden="true">★</span>
+          ${title}
+          <span class="page-header__star" aria-hidden="true">★</span>
+        </h1>
         <p class="page-header__subtitle">${subtitle}</p>
       </div>
+      ${
+        activeView === 'slots'
+          ? `
+        <div class="page-header__actions" aria-label="Session actions">
+          <button type="button" class="page-header__action" disabled title="Coming soon">Save game</button>
+          <button type="button" class="page-header__action page-header__action--icon" disabled title="Coming soon" aria-label="Settings">⚙</button>
+          <button type="button" class="page-header__action page-header__action--icon" disabled title="Coming soon" aria-label="Help">?</button>
+        </div>
+      `
+          : ''
+      }
     </header>
   `;
 }
@@ -195,12 +213,27 @@ function formatRoundTime(timestamp) {
 
 /** @param {import('../data/types.js').Slot[]} slots */
 function renderMachineHousing(slots, uiState, spinControls) {
+  const leverDisabled = spinControls.spinUnfrozenDisabled ? 'disabled' : '';
+
   return `
     <section class="machine-housing surface-gold-frame" aria-label="Slot machine">
-      <h2 class="machine-housing__label">Game Night Picks</h2>
       ${renderSpinError(uiState.spinError)}
-      <div class="reel-row" id="reel-row">
-        ${slots.map((slot) => renderReelCard(slot, uiState, spinControls.spinLocked)).join('')}
+      <div class="machine-housing__stage">
+        <div class="machine-housing__reels surface-metal" id="reel-row">
+          <div class="reel-row">
+            ${slots.map((slot, index) => renderReelCard(slot, index, uiState, spinControls.spinLocked)).join('')}
+          </div>
+        </div>
+        <button
+          type="button"
+          class="machine-lever"
+          data-action="spin-unfrozen"
+          aria-label="Pull lever to spin unfrozen slots"
+          ${leverDisabled}
+        >
+          <span class="machine-lever__arm" aria-hidden="true"></span>
+          <span class="machine-lever__knob" aria-hidden="true"></span>
+        </button>
       </div>
       ${renderSpinControls(spinControls)}
     </section>
@@ -244,7 +277,7 @@ function renderSpinControls(spinControls) {
     <div class="spin-controls">
       <button type="button" class="btn btn--secondary btn--shuffle" data-action="shuffle-all" ${shuffleAttr}>Shuffle all</button>
       <button type="button" class="btn btn--spin surface-red-enamel" data-action="spin-unfrozen" ${spinUnfrozenAttr}>
-        <span class="btn--spin__icon" aria-hidden="true">◎</span>
+        <span class="btn--spin__icon" aria-hidden="true">★</span>
         <span class="btn--spin__label">Spin unfrozen slots</span>
         <span class="btn--spin__support">${supportText}</span>
       </button>
@@ -261,7 +294,11 @@ function renderEditorSection(slots, uiState, spinLocked) {
   return `
     <section class="editor-section${lockedClass}" aria-label="Edit slots and options">
       <div class="editor-section__header">
-        <h2 class="editor-section__title">Edit slots &amp; options</h2>
+        <h2 class="editor-section__title">
+          <span class="editor-section__star" aria-hidden="true">★</span>
+          Edit slots &amp; options
+          <span class="editor-section__star" aria-hidden="true">★</span>
+        </h2>
         <button type="button" class="btn btn--secondary" data-action="add-slot" ${lockedAttr}>Add slot</button>
       </div>
       <div class="slot-editors" id="slot-editors">
@@ -281,7 +318,7 @@ function renderUtilityRail(session, activeCount, spinLocked, activeView) {
     session.currentRound > session.totalRounds ? ' stat-card--over-target' : '';
 
   return `
-    <aside class="utility-rail${hideOnHistory}" aria-label="Round and slot utilities">
+    <aside class="utility-rail surface-metal surface-gold-frame${hideOnHistory}" aria-label="Round and slot utilities">
       <div class="stat-card${roundOverClass}">
         <p class="stat-card__label">Round</p>
         <p class="stat-card__value">${session.currentRound}</p>
@@ -303,10 +340,12 @@ function renderUtilityRail(session, activeCount, spinLocked, activeView) {
       </div>
       <div class="stat-row">
         <div class="stat-chip stat-chip--active">
+          <span class="stat-chip__led" aria-hidden="true"></span>
           <span class="stat-chip__value">${activeCount}</span>
           <span class="stat-chip__label">Active</span>
         </div>
         <div class="stat-chip stat-chip--frozen">
+          <span class="stat-chip__led" aria-hidden="true"></span>
           <span class="stat-chip__value">${frozenCount}</span>
           <span class="stat-chip__label">Frozen</span>
         </div>
@@ -317,14 +356,18 @@ function renderUtilityRail(session, activeCount, spinLocked, activeView) {
   `;
 }
 
-/** @param {import('../data/types.js').Slot} slot */
-function renderReelCard(slot, uiState = {}, spinLocked = false) {
+/**
+ * @param {import('../data/types.js').Slot} slot
+ * @param {number} index
+ */
+function renderReelCard(slot, index, uiState = {}, spinLocked = false) {
   const spinning = uiState.spinningSlotIds?.includes(slot.id);
   const display = getReelDisplayState(slot);
   const controlDisabled = spinLocked ? 'disabled' : '';
   const spinTargetLabel = uiState.spinDrawLabels?.[slot.id];
+  const accentClass = slotAccentClass(index, 'reel-card');
   const frozenBadge = slot.frozen
-    ? `<span class="reel-card__frozen-badge"><span aria-hidden="true">🔒</span> Frozen</span>`
+    ? `<span class="reel-card__frozen-badge"><span aria-hidden="true">❄</span> Frozen</span>`
     : '';
   const eliminatedCount = slot.eliminatedOptions?.length ?? 0;
   const poolMeta =
@@ -345,10 +388,16 @@ function renderReelCard(slot, uiState = {}, spinLocked = false) {
         .join('')
     : '<option value="">No options</option>';
 
+  const freezeLabel = slot.frozen ? '❄ Unfreeze' : '❄ Freeze';
+
   return `
-    <article class="reel-card ${slot.frozen ? 'reel-card--frozen' : ''}" data-slot-id="${slot.id}">
+    <article class="reel-card ${accentClass} ${slot.frozen ? 'reel-card--frozen' : ''}" data-slot-id="${slot.id}">
       ${frozenBadge}
-      <header class="reel-card__header">${escapeHtml(slot.title)}</header>
+      <header class="reel-card__header">
+        <span class="reel-card__header-star" aria-hidden="true">★</span>
+        ${escapeHtml(slot.title)}
+        <span class="reel-card__header-star" aria-hidden="true">★</span>
+      </header>
       ${poolMeta}
       <div class="reel-card__viewport ${display.kind === 'gated-prompt' ? 'reel-card__viewport--gated' : ''}">
         ${drumMarkup}
@@ -360,7 +409,7 @@ function renderReelCard(slot, uiState = {}, spinLocked = false) {
           data-action="toggle-freeze"
           data-slot-id="${slot.id}"
           ${controlDisabled}
-        >${slot.frozen ? 'Unfreeze' : 'Freeze'}</button>
+        >${freezeLabel}</button>
         <label class="reel-card__force-select">
           <span class="sr-only">Force select for ${escapeAttr(slot.title)}</span>
           <select data-action="force-select" data-slot-id="${slot.id}" ${slot.options.length === 0 || spinLocked ? 'disabled' : ''}>
@@ -393,16 +442,20 @@ function renderSlotEditor(slot, index, importSummary, spinLocked = false) {
     <article class="slot-editor ${accentClass}" data-slot-id="${slot.id}">
       <header class="slot-editor__header">
         <span class="slot-editor__drag" draggable="${dragEnabled}" data-action="drag-slot" data-slot-id="${slot.id}" aria-label="Reorder slot" title="Drag to reorder">⋮⋮</span>
-        <input
-          type="text"
-          class="slot-editor__title-input"
-          data-action="edit-slot-title"
-          data-slot-id="${slot.id}"
-          value="${escapeAttr(slot.title)}"
-          maxlength="40"
-          aria-label="Slot title"
-          ${lockedAttr}
-        />
+        <div class="slot-editor__title-wrap">
+          <span class="slot-editor__title-star" aria-hidden="true">★</span>
+          <input
+            type="text"
+            class="slot-editor__title-input"
+            data-action="edit-slot-title"
+            data-slot-id="${slot.id}"
+            value="${escapeAttr(slot.title)}"
+            maxlength="40"
+            aria-label="Slot title"
+            ${lockedAttr}
+          />
+          <span class="slot-editor__title-star" aria-hidden="true">★</span>
+        </div>
         <button type="button" class="slot-editor__icon-btn" data-action="focus-add-option" data-slot-id="${slot.id}" aria-label="Add option" ${lockedAttr}>+</button>
         <button type="button" class="slot-editor__icon-btn slot-editor__icon-btn--danger" data-action="delete-slot" data-slot-id="${slot.id}" aria-label="Delete slot" ${lockedAttr}>🗑</button>
       </header>
@@ -415,7 +468,7 @@ function renderSlotEditor(slot, index, importSummary, spinLocked = false) {
         <div class="slot-editor__footer-actions">
           <input
             type="text"
-            class="add-option-input"
+            class="add-option-input add-option-input--prominent"
             data-action="add-option"
             data-slot-id="${slot.id}"
             placeholder="+ Add option"
@@ -435,6 +488,17 @@ function renderSlotEditor(slot, index, importSummary, spinLocked = false) {
           aria-hidden="true"
           tabindex="-1"
         />
+        <label class="slot-editor__eliminate-toggle">
+          <input
+            type="checkbox"
+            class="slot-editor__eliminate-checkbox"
+            data-action="toggle-eliminate-on-spin"
+            data-slot-id="${slot.id}"
+            ${slot.eliminateOnSpin ? 'checked' : ''}
+            ${lockedAttr}
+          />
+          <span class="slot-editor__eliminate-label">Eliminate options on spin</span>
+        </label>
       </footer>
     </article>
   `;

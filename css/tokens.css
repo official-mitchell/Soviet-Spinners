@@ -1,5 +1,5 @@
 /* Design tokens — Soviet Spinners visual system (handoff §3–§5, §11) */
-/* Updated: 2026-08-05 — full primitive + semantic palette, type, motion, surfaces */
+/* Updated: 2026-08-05 — stronger canvas grain and reel display scale */
 
 :root {
   /* Primitive — neutral */
@@ -121,6 +121,7 @@
   --type-heading-section: 20px;
   --type-heading-component: 16px;
   --type-label-reel: 15px;
+  --type-reel-result: clamp(24px, 2.4vw, 36px);
   --type-label-button-lg: 18px;
   --type-body-md: 15px;
   --type-body-sm: 13px;
@@ -211,7 +212,7 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  opacity: 0.04;
+  opacity: 0.06;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   z-index: 0;
 }

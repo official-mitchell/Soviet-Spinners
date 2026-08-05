@@ -13,6 +13,7 @@ import {
   getState,
   loadSession,
   setStorageBackend,
+  setSlotEliminateOnSpin,
   spinUnfrozen,
   writeRaw,
 } from '../src/data/index.js';
@@ -24,10 +25,11 @@ describe('Eliminated options', () => {
     clearSession();
   });
 
-  it('spin removes the drawn option from the active pool and records it as eliminated', () => {
+  it('spin removes the drawn option from the active pool and records it as eliminated when enabled', () => {
     const slot = getState().slots[0];
     addOption(slot.id, 'Alpha');
     addOption(slot.id, 'Beta');
+    setSlotEliminateOnSpin(slot.id, true);
 
     spinUnfrozen();
 
@@ -40,6 +42,7 @@ describe('Eliminated options', () => {
   it('eliminated options cannot be force-selected again', () => {
     const slot = getState().slots[0];
     addOption(slot.id, 'Only pick');
+    setSlotEliminateOnSpin(slot.id, true);
     spinUnfrozen();
 
     const eliminatedId = getState().slots[0].eliminatedOptions?.[0]?.id;
@@ -50,6 +53,7 @@ describe('Eliminated options', () => {
   it('normalizeSession backfills eliminated options from round history', () => {
     const slot = getState().slots[0];
     addOption(slot.id, 'Historical pick');
+    setSlotEliminateOnSpin(slot.id, true);
     spinUnfrozen();
 
     const snapshot = getState();
@@ -70,6 +74,8 @@ describe('Eliminated options', () => {
     addOption(slotA.id, 'Presenter');
     addOption(slotB.id, 'Deck one');
     addOption(slotB.id, 'Deck two');
+    setSlotEliminateOnSpin(slotA.id, true);
+    setSlotEliminateOnSpin(slotB.id, true);
 
     spinUnfrozen();
 
