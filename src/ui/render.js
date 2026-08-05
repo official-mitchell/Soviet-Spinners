@@ -1,5 +1,5 @@
 // DOM rendering for slot management UI — checklist §2–§7.
-// Updated: 2026-08-05 — per-reel shimmer delay on option cards.
+// Updated: 2026-08-05 — links mode UI, import menu, and slot action menu.
 
 import { countDrawableSlots } from '../data/spin.js';
 import { getForcedSlotTitles, isForcedRoundResult, resolveHistorySlotTitle } from './history-display.js';
@@ -24,6 +24,7 @@ function slotAccentClass(index, prefix) {
  * @param {Object} [uiState]
  * @param {string | null} [uiState.focusSlotTitleId]
  * @param {string | null} [uiState.focusAddOptionSlotId]
+ * @param {string | null} [uiState.focusAddLinkSlotId]
  * @param {Record<string, import('../data/types.js').CsvImportSummary>} [uiState.importSummaries]
  * @param {string[]} [uiState.spinningSlotIds]
  * @param {boolean} [uiState.spinLocked]
@@ -302,7 +303,7 @@ function renderEditorSection(slots, uiState, spinLocked) {
         </button>
       </div>
       <div class="slot-editors" id="slot-editors">
-        ${slots.map((slot, index) => renderSlotEditor(slot, index, uiState.importSummaries?.[slot.id], spinLocked)).join('')}
+        ${slots.map((slot, index) => renderSlotEditor(slot, index, uiState, spinLocked)).join('')}
         ${renderAddSlotCard(spinLocked)}
       </div>
     </section>
@@ -426,10 +427,16 @@ function renderReelCard(slot, index, uiState = {}, spinLocked = false) {
  * @param {import('../data/types.js').CsvImportSummary} [importSummary]
  * @param {boolean} [spinLocked]
  */
-function renderSlotEditor(slot, index, importSummary, spinLocked = false) {
+function renderSlotEditor(slot, index, uiState = {}, spinLocked = false) {
+  const importSummary = uiState.importSummaries?.[slot.id];
   const accentClass = ACCENT_CLASSES[index % ACCENT_CLASSES.length];
   const lockedAttr = spinLocked ? 'disabled' : '';
   const dragEnabled = spinLocked ? 'false' : 'true';
+  const showLinkInput = Boolean(slot.linksMode);
+  const linkInputClass =
+    showLinkInput && uiState.focusAddLinkSlotId === slot.id
+      ? 'slot-editor__link-input'
+      : 'slot-editor__link-input slot-editor__link-input--hidden';
 
   return `
     <article class="slot-editor ${accentClass}" data-slot-id="${slot.id}">
@@ -450,10 +457,12 @@ function renderSlotEditor(slot, index, importSummary, spinLocked = false) {
           <span class="slot-editor__title-star" aria-hidden="true">★</span>
         </div>
         <button type="button" class="slot-editor__icon-btn" data-action="focus-add-option" data-slot-id="${slot.id}" aria-label="Add option" ${lockedAttr}>+</button>
-        <button type="button" class="slot-editor__icon-btn slot-editor__icon-btn--danger" data-action="delete-slot" data-slot-id="${slot.id}" aria-label="Delete slot" ${lockedAttr}>🗑</button>
+        <div class="slot-editor__menu-wrap">
+          <button type="button" class="slot-editor__icon-btn slot-editor__icon-btn--danger" data-action="toggle-slot-actions-menu" data-slot-id="${slot.id}" aria-label="Slot actions" ${lockedAttr}>🗑</button>
+        </div>
       </header>
       <ul class="slot-editor__options" data-slot-id="${slot.id}">
-        ${slot.options.map((option) => renderOptionRow(slot.id, option, spinLocked)).join('')}
+        ${slot.options.map((option) => renderOptionRow(slot.id, option, slot.linksMode, spinLocked)).join('')}
       </ul>
       ${renderEliminatedOptions(slot)}
       <footer class="slot-editor__footer">
@@ -464,19 +473,50 @@ function renderSlotEditor(slot, index, importSummary, spinLocked = false) {
             class="add-option-input add-option-input--prominent"
             data-action="add-option"
             data-slot-id="${slot.id}"
-            placeholder="+ Add option"
+            placeholder="${slot.linksMode ? '+ Add option name' : '+ Add option'}"
             aria-label="Add option to ${escapeAttr(slot.title)}"
             ${lockedAttr}
           />
-          <button type="button" class="btn btn--secondary btn--import" data-action="import-csv" data-slot-id="${slot.id}" ${lockedAttr}>
-            Import CSV
-          </button>
+          ${
+            slot.linksMode
+              ? `<button type="button" class="btn btn--secondary btn--add-link" data-action="focus-add-link" data-slot-id="${slot.id}" ${lockedAttr}>Add link</button>`
+              : ''
+          }
+          <div class="slot-editor__import-wrap">
+            <button type="button" class="btn btn--secondary btn--import" data-action="toggle-import-menu" data-slot-id="${slot.id}" ${lockedAttr}>
+              Import CSV
+            </button>
+          </div>
         </div>
+        ${
+          showLinkInput
+            ? `<input
+            type="url"
+            class="${linkInputClass}"
+            data-action="add-option-link"
+            data-slot-id="${slot.id}"
+            placeholder="Paste link URL"
+            aria-label="Paste link for ${escapeAttr(slot.title)}"
+            ${lockedAttr}
+          />`
+            : ''
+        }
         <input
           type="file"
           accept=".csv,text/csv"
           class="sr-only"
           data-action="csv-file"
+          data-import-format="single"
+          data-slot-id="${slot.id}"
+          aria-hidden="true"
+          tabindex="-1"
+        />
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          class="sr-only"
+          data-action="csv-file"
+          data-import-format="links"
           data-slot-id="${slot.id}"
           aria-hidden="true"
           tabindex="-1"
@@ -492,6 +532,18 @@ function renderSlotEditor(slot, index, importSummary, spinLocked = false) {
           />
           <span class="slot-editor__eliminate-box" aria-hidden="true"></span>
           <span class="slot-editor__eliminate-label">Eliminate options on spin</span>
+        </label>
+        <label class="slot-editor__eliminate-toggle">
+          <input
+            type="checkbox"
+            class="slot-editor__eliminate-checkbox sr-only"
+            data-action="toggle-links-mode"
+            data-slot-id="${slot.id}"
+            ${slot.linksMode ? 'checked' : ''}
+            ${lockedAttr}
+          />
+          <span class="slot-editor__eliminate-box" aria-hidden="true"></span>
+          <span class="slot-editor__eliminate-label">This column is for links</span>
         </label>
       </footer>
     </article>
@@ -528,13 +580,18 @@ function renderEliminatedOptions(slot) {
  * @param {import('../data/types.js').Option} option
  * @param {boolean} [spinLocked]
  */
-function renderOptionRow(slotId, option, spinLocked = false) {
+function renderOptionRow(slotId, option, linksMode = false, spinLocked = false) {
   const lockedAttr = spinLocked ? 'disabled' : '';
   const dragEnabled = spinLocked ? 'false' : 'true';
+  const linkBadge = option.url
+    ? `<span class="option-row__link" title="${escapeAttr(option.url)}" aria-label="Linked option">🔗</span>`
+    : linksMode
+      ? `<span class="option-row__link option-row__link--missing" aria-hidden="true">—</span>`
+      : '';
 
   return `
     <li
-      class="option-row"
+      class="option-row${linksMode ? ' option-row--links' : ''}"
       data-slot-id="${slotId}"
       data-option-id="${option.id}"
       draggable="${dragEnabled}"
@@ -542,6 +599,7 @@ function renderOptionRow(slotId, option, spinLocked = false) {
     >
       <span class="option-row__drag" aria-hidden="true">⋮⋮</span>
       <span class="option-row__label" data-action="edit-option" data-slot-id="${slotId}" data-option-id="${option.id}">${escapeHtml(option.label)}</span>
+      ${linkBadge}
       <button
         type="button"
         class="option-row__star ${option.highlighted ? 'option-row__star--active' : ''}"
@@ -619,6 +677,16 @@ function applyPostRenderFocus(uiState) {
       input.focus();
     }
   }
+
+  if (uiState.focusAddLinkSlotId) {
+    const input = document.querySelector(
+      `[data-action="add-option-link"][data-slot-id="${uiState.focusAddLinkSlotId}"]`,
+    );
+    if (input instanceof HTMLInputElement) {
+      input.classList.remove('slot-editor__link-input--hidden');
+      input.focus();
+    }
+  }
 }
 
 /** @param {string} value */
@@ -668,6 +736,72 @@ export function renderOptionMenu(slotId, optionId) {
 
 export function closeAllOptionMenus() {
   document.querySelectorAll('.option-row__menu').forEach((menu) => menu.remove());
+}
+
+export function closeAllSlotActionMenus() {
+  document.querySelectorAll('.slot-editor__actions-menu').forEach((menu) => menu.remove());
+}
+
+export function closeAllImportMenus() {
+  document.querySelectorAll('.slot-editor__import-menu').forEach((menu) => menu.remove());
+}
+
+/**
+ * @param {string} slotId
+ */
+export function renderSlotActionsMenu(slotId) {
+  closeAllSlotActionMenus();
+  closeAllImportMenus();
+
+  const button = document.querySelector(
+    `[data-action="toggle-slot-actions-menu"][data-slot-id="${slotId}"]`,
+  );
+
+  if (!(button instanceof HTMLElement)) {
+    return;
+  }
+
+  const wrap = button.closest('.slot-editor__menu-wrap');
+  if (!wrap) {
+    return;
+  }
+
+  const menu = document.createElement('div');
+  menu.className = 'slot-editor__actions-menu';
+  menu.innerHTML = `
+    <button type="button" class="slot-editor__actions-item slot-editor__actions-item--danger" data-action="delete-slot" data-slot-id="${slotId}">Delete slot</button>
+    <button type="button" class="slot-editor__actions-item" data-action="clear-slot-options" data-slot-id="${slotId}">Delete all inputs</button>
+  `;
+  wrap.appendChild(menu);
+}
+
+/**
+ * @param {string} slotId
+ */
+export function renderImportMenu(slotId) {
+  closeAllImportMenus();
+  closeAllSlotActionMenus();
+
+  const button = document.querySelector(
+    `[data-action="toggle-import-menu"][data-slot-id="${slotId}"]`,
+  );
+
+  if (!(button instanceof HTMLElement)) {
+    return;
+  }
+
+  const wrap = button.closest('.slot-editor__import-wrap');
+  if (!wrap) {
+    return;
+  }
+
+  const menu = document.createElement('div');
+  menu.className = 'slot-editor__import-menu';
+  menu.innerHTML = `
+    <button type="button" class="slot-editor__import-item" data-action="import-csv-single" data-slot-id="${slotId}">Import CSV</button>
+    <button type="button" class="slot-editor__import-item" data-action="import-csv-links" data-slot-id="${slotId}">Import manually formatted CSV</button>
+  `;
+  wrap.appendChild(menu);
 }
 
 /**

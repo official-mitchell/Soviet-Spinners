@@ -9,6 +9,7 @@
  * @typedef {Object} Option
  * @property {string} id
  * @property {string} label
+ * @property {string} [url]
  * @property {boolean} [highlighted]
  */
 
@@ -28,6 +29,7 @@
  * @property {Option[]} [eliminatedOptions]
  * @property {boolean} frozen
  * @property {boolean} eliminateOnSpin
+ * @property {boolean} linksMode
  * @property {RevealMode} revealMode
  * @property {number} order
  * @property {SlotResult | null} [currentResult]

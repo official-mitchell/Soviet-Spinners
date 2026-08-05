@@ -1,5 +1,5 @@
 /* App layout and components — Soviet Spinners §2–§7 visual system */
-/* Updated: 2026-08-05 — reel label fix, shimmer, button polish, handle z-index */
+/* Updated: 2026-08-05 — links mode controls, import menu, slot actions menu */
 
 .app-shell {
   display: grid;
@@ -1625,6 +1625,90 @@
 }
 
 .slot-editor__footer-actions .add-option-input {
+  flex: 1 1 180px;
+}
+
+.btn--add-link {
+  flex-shrink: 0;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.slot-editor__link-input {
+  width: 100%;
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: var(--border-hairline) solid var(--border-gold);
+  background: var(--bg-control);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.slot-editor__link-input--hidden {
+  display: none;
+}
+
+.slot-editor__menu-wrap,
+.slot-editor__import-wrap {
+  position: relative;
+}
+
+.slot-editor__actions-menu,
+.slot-editor__import-menu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 8;
+  min-width: 210px;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  border: var(--border-hairline) solid var(--border-gold);
+  background: var(--bg-panel-raised);
+  box-shadow: var(--shadow-panel);
+}
+
+.slot-editor__import-menu {
+  min-width: 240px;
+}
+
+.slot-editor__actions-item,
+.slot-editor__import-item {
+  display: block;
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.slot-editor__actions-item:hover,
+.slot-editor__import-item:hover {
+  background: var(--bg-control-hover);
+}
+
+.slot-editor__actions-item--danger {
+  color: var(--text-error);
+}
+
+.option-row__link {
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.option-row__link--missing {
+  color: var(--text-muted);
+  opacity: 0.45;
+}
+
+.option-row--links .option-row__label {
   flex: 1;
 }
 

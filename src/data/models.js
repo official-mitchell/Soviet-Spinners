@@ -1,11 +1,12 @@
 // Entity factories, default session shape, and normalization on load.
-// Updated: 2026-08-05 — per-slot eliminateOnSpin flag (default false).
+// Updated: 2026-08-05 — per-slot linksMode flag and optional option URLs.
 
 import {
   DEFAULT_SLOT_TITLE,
   DEFAULT_TOTAL_ROUNDS,
   REVEAL_MODES,
 } from './constants.js';
+import { normalizeOptionUrl } from './csv-import.js';
 
 /** @returns {string} */
 export function generateId() {
@@ -14,14 +15,23 @@ export function generateId() {
 
 /**
  * @param {string} label
+ * @param {string} [url]
  * @returns {import('./types.js').Option}
  */
-export function createOptionEntity(label) {
-  return {
+export function createOptionEntity(label, url) {
+  /** @type {import('./types.js').Option} */
+  const option = {
     id: generateId(),
     label: label.trim(),
     highlighted: false,
   };
+
+  const normalizedUrl = normalizeOptionUrl(url);
+  if (normalizedUrl) {
+    option.url = normalizedUrl;
+  }
+
+  return option;
 }
 
 /**
@@ -37,6 +47,7 @@ export function createSlotEntity(title = DEFAULT_SLOT_TITLE, order = 0) {
     eliminatedOptions: [],
     frozen: false,
     eliminateOnSpin: false,
+    linksMode: false,
     revealMode: REVEAL_MODES.IMMEDIATE,
     order,
   };
@@ -141,6 +152,7 @@ function normalizeSlot(raw, index) {
     eliminatedOptions,
     frozen: Boolean(slot.frozen),
     eliminateOnSpin: Boolean(slot.eliminateOnSpin),
+    linksMode: Boolean(slot.linksMode),
     revealMode:
       slot.revealMode === REVEAL_MODES.GATED
         ? REVEAL_MODES.GATED
@@ -184,18 +196,28 @@ function normalizeOption(raw) {
     return null;
   }
 
-  const option = /** @type {Record<string, unknown>} */ (raw);
-  const label = typeof option.label === 'string' ? option.label.trim() : '';
+  const optionRaw = /** @type {Record<string, unknown>} */ (raw);
+  const label = typeof optionRaw.label === 'string' ? optionRaw.label.trim() : '';
 
   if (!label) {
     return null;
   }
 
-  return {
-    id: typeof option.id === 'string' && option.id ? option.id : generateId(),
+  /** @type {import('./types.js').Option} */
+  const option = {
+    id: typeof optionRaw.id === 'string' && optionRaw.id ? optionRaw.id : generateId(),
     label,
-    highlighted: Boolean(option.highlighted),
+    highlighted: Boolean(optionRaw.highlighted),
   };
+
+  const normalizedUrl = normalizeOptionUrl(
+    typeof optionRaw.url === 'string' ? optionRaw.url : undefined,
+  );
+  if (normalizedUrl) {
+    option.url = normalizedUrl;
+  }
+
+  return option;
 }
 
 /**

@@ -61,6 +61,10 @@ export {
   unlockAll,
   setSlotRevealMode,
   setSlotEliminateOnSpin,
+  setSlotLinksMode,
+  clearSlotOptions,
+  updateOptionLink,
+  importLinkCsvOptions,
   revealSlot,
 } from './store.js';
 
@@ -79,5 +83,10 @@ export {
   isPlainLabel,
   parseSingleColumnCsv,
   processCsvForImport,
+  processLinkCsvForImport,
+  parseTwoColumnCsv,
+  normalizeOptionUrl,
+  isValidLinkUrl,
+  parseCsvRow,
   skipDetectedHeaderRow,
 } from './csv-import.js';

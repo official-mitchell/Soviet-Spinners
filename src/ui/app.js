@@ -1,9 +1,10 @@
 // Application bootstrap and event wiring — Slot Management UI §2–§7.
-// Updated: 2026-08-05 — sync reel header titles while editing slot names.
+// Updated: 2026-08-05 — links mode, link CSV import, and slot action menus.
 
 import { countDrawableSlots } from '../data/spin.js';
 import {
   addOption,
+  clearSlotOptions,
   clearForceSelect,
   commitSpinDraws,
   createSlot,
@@ -13,6 +14,7 @@ import {
   getState,
   hasSpinDraws,
   importCsvOptions,
+  importLinkCsvOptions,
   loadSession,
   planSpin,
   reorderOptions,
@@ -20,21 +22,27 @@ import {
   revealSlot,
   setSlotFrozen,
   setSlotEliminateOnSpin,
+  setSlotLinksMode,
   setTotalRounds,
   shuffleAll,
   toggleOptionHighlight,
   unlockAll,
   updateOption,
+  updateOptionLink,
   updateSlotTitle,
 } from '../data/index.js';
 import { confirmDialog, initModal, isModalOpen } from './modal.js';
 import {
   beginOptionEdit,
   closeAllForceSelectPopups,
+  closeAllImportMenus,
   closeAllOptionMenus,
+  closeAllSlotActionMenus,
   renderAppShell,
   renderForceSelectPopup,
+  renderImportMenu,
   renderOptionMenu,
+  renderSlotActionsMenu,
 } from './render.js';
 import { getDeleteSlotMessage, shouldConfirmSlotDelete } from './slot-actions.js';
 import { runSpinAnimation } from './spin-controller.js';
@@ -49,10 +57,11 @@ import {
   shouldDeferRender,
 } from './edit-state.js';
 
-/** @type {{ focusSlotTitleId: string | null, focusAddOptionSlotId: string | null, importSummaries: Record<string, import('../data/types.js').CsvImportSummary>, spinningSlotIds: string[], spinLocked: boolean, spinError: string | null, activeView: 'slots' | 'history', spinDrawLabels: Record<string, string> }} */
+/** @type {{ focusSlotTitleId: string | null, focusAddOptionSlotId: string | null, focusAddLinkSlotId: string | null, importSummaries: Record<string, import('../data/types.js').CsvImportSummary>, spinningSlotIds: string[], spinLocked: boolean, spinError: string | null, activeView: 'slots' | 'history', spinDrawLabels: Record<string, string> }} */
 const uiState = {
   focusSlotTitleId: null,
   focusAddOptionSlotId: null,
+  focusAddLinkSlotId: null,
   importSummaries: {},
   spinningSlotIds: [],
   spinLocked: false,
@@ -101,6 +110,7 @@ function doRender(next = {}) {
 
   uiState.focusSlotTitleId = next.focusSlotTitleId ?? null;
   uiState.focusAddOptionSlotId = next.focusAddOptionSlotId ?? null;
+  uiState.focusAddLinkSlotId = next.focusAddLinkSlotId ?? null;
   if (next.importSummaries) {
     uiState.importSummaries = next.importSummaries;
   }
@@ -135,6 +145,7 @@ function doRender(next = {}) {
 
   uiState.focusSlotTitleId = null;
   uiState.focusAddOptionSlotId = null;
+  uiState.focusAddLinkSlotId = null;
   if (!spinInProgress) {
     uiState.spinDrawLabels = {};
   }
@@ -280,6 +291,26 @@ function handleClearForceSelect(slotId) {
 }
 
 /**
+ * @param {import('../data/types.js').Slot} slot
+ * @returns {string}
+ */
+function resolveRevealUrl(slot) {
+  if (!slot.currentResult) {
+    throw new Error('No result to reveal');
+  }
+
+  const option =
+    slot.options.find((entry) => entry.id === slot.currentResult.optionId) ??
+    slot.eliminatedOptions?.find((entry) => entry.id === slot.currentResult.optionId);
+
+  if (slot.linksMode && option?.url) {
+    return option.url;
+  }
+
+  return toPresentationModeUrl(slot.currentResult.label);
+}
+
+/**
  * @param {string} slotId
  */
 function handleRevealSlot(slotId) {
@@ -294,7 +325,7 @@ function handleRevealSlot(slotId) {
       throw new Error('No result to reveal');
     }
 
-    const presentationUrl = toPresentationModeUrl(slot.currentResult.label);
+    const presentationUrl = resolveRevealUrl(slot);
     openGatedLaunch(presentationUrl);
     revealSlot(slotId);
     spinErrorMessage = null;
@@ -436,9 +467,39 @@ function handleTotalRoundsChange(rawValue) {
 
 /**
  * @param {string} slotId
- * @param {string} label
  */
-function handleAddOption(slotId, label) {
+async function handleClearSlotOptions(slotId) {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  const slot = getState().slots.find((entry) => entry.id === slotId);
+  if (!slot || slot.options.length === 0) {
+    return;
+  }
+
+  const confirmed = await confirmDialog({
+    title: 'Delete all inputs',
+    message: `Remove all ${slot.options.length} options from '${slot.title}'?`,
+    confirmLabel: 'Delete all inputs',
+    cancelLabel: 'Cancel',
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
+  clearSlotOptions(slotId);
+  closeAllSlotActionMenus();
+  scheduleRender();
+}
+
+/**
+ * @param {string} slotId
+ * @param {string} label
+ * @param {string} [url]
+ */
+function handleAddOption(slotId, label, url) {
   if (isSpinLocked()) {
     return;
   }
@@ -448,8 +509,57 @@ function handleAddOption(slotId, label) {
     return;
   }
 
-  addOption(slotId, trimmed);
+  addOption(slotId, trimmed, url);
   scheduleRender({ focusAddOptionSlotId: slotId });
+}
+
+/**
+ * @param {string} slotId
+ */
+function clearAddOptionInputs(slotId) {
+  const editor = document.querySelector(`.slot-editor[data-slot-id="${slotId}"]`);
+  if (!(editor instanceof HTMLElement)) {
+    return;
+  }
+
+  const nameInput = editor.querySelector('[data-action="add-option"]');
+  const linkInput = editor.querySelector('[data-action="add-option-link"]');
+
+  if (nameInput instanceof HTMLInputElement) {
+    nameInput.value = '';
+  }
+
+  if (linkInput instanceof HTMLInputElement) {
+    linkInput.value = '';
+  }
+}
+
+/**
+ * @param {string} slotId
+ */
+function readPendingLinkUrl(slotId) {
+  const linkInput = document.querySelector(
+    `[data-action="add-option-link"][data-slot-id="${slotId}"]`,
+  );
+  return linkInput instanceof HTMLInputElement ? linkInput.value : '';
+}
+
+/**
+ * @param {string} slotId
+ */
+function submitAddOption(slotId) {
+  const nameInput = document.querySelector(
+    `[data-action="add-option"][data-slot-id="${slotId}"]`,
+  );
+
+  if (!(nameInput instanceof HTMLInputElement)) {
+    return;
+  }
+
+  const slot = getState().slots.find((entry) => entry.id === slotId);
+  const url = slot?.linksMode ? readPendingLinkUrl(slotId) : undefined;
+  handleAddOption(slotId, nameInput.value, url);
+  clearAddOptionInputs(slotId);
 }
 
 /**
@@ -569,15 +679,18 @@ function handleOptionDrop(slotId, sourceOptionId, targetOptionId) {
 /**
  * @param {string} slotId
  * @param {File} file
+ * @param {'single' | 'links'} format
  */
-async function handleCsvImport(slotId, file) {
+async function handleCsvImport(slotId, file, format = 'single') {
   if (isSpinLocked()) {
     return;
   }
 
   const text = await file.text();
-  const summary = importCsvOptions(slotId, text);
+  const summary =
+    format === 'links' ? importLinkCsvOptions(slotId, text) : importCsvOptions(slotId, text);
 
+  closeAllImportMenus();
   scheduleRender({
     importSummaries: {
       ...uiState.importSummaries,
@@ -619,6 +732,8 @@ function bindEvents() {
     const actionElement = target.closest('[data-action]');
     if (!(actionElement instanceof HTMLElement)) {
       closeAllOptionMenus();
+      closeAllSlotActionMenus();
+      closeAllImportMenus();
       closeAllForceSelectPopups();
       return;
     }
@@ -642,12 +757,55 @@ function bindEvents() {
         break;
       case 'delete-slot':
         if (slotId) {
+          closeAllSlotActionMenus();
           handleDeleteSlot(slotId);
+        }
+        break;
+      case 'clear-slot-options':
+        if (slotId) {
+          handleClearSlotOptions(slotId);
+        }
+        break;
+      case 'toggle-slot-actions-menu':
+        if (slotId) {
+          event.stopPropagation();
+          renderSlotActionsMenu(slotId);
+        }
+        break;
+      case 'toggle-import-menu':
+        if (slotId) {
+          event.stopPropagation();
+          renderImportMenu(slotId);
+        }
+        break;
+      case 'import-csv-single':
+        if (slotId) {
+          const fileInput = document.querySelector(
+            `[data-action="csv-file"][data-import-format="single"][data-slot-id="${slotId}"]`,
+          );
+          if (fileInput instanceof HTMLInputElement) {
+            fileInput.click();
+          }
+        }
+        break;
+      case 'import-csv-links':
+        if (slotId) {
+          const fileInput = document.querySelector(
+            `[data-action="csv-file"][data-import-format="links"][data-slot-id="${slotId}"]`,
+          );
+          if (fileInput instanceof HTMLInputElement) {
+            fileInput.click();
+          }
         }
         break;
       case 'focus-add-option':
         if (slotId) {
           scheduleRender({ focusAddOptionSlotId: slotId });
+        }
+        break;
+      case 'focus-add-link':
+        if (slotId) {
+          scheduleRender({ focusAddLinkSlotId: slotId, focusAddOptionSlotId: slotId });
         }
         break;
       case 'toggle-highlight':
@@ -681,12 +839,7 @@ function bindEvents() {
         break;
       case 'import-csv':
         if (slotId) {
-          const fileInput = document.querySelector(
-            `[data-action="csv-file"][data-slot-id="${slotId}"]`,
-          );
-          if (fileInput instanceof HTMLInputElement) {
-            fileInput.click();
-          }
+          renderImportMenu(slotId);
         }
         break;
       case 'shuffle-all':
@@ -764,7 +917,8 @@ function bindEvents() {
     }
 
     if (target.dataset.action === 'csv-file' && target.files?.[0] && target.dataset.slotId) {
-      handleCsvImport(target.dataset.slotId, target.files[0]).finally(() => {
+      const format = target.dataset.importFormat === 'links' ? 'links' : 'single';
+      handleCsvImport(target.dataset.slotId, target.files[0], format).finally(() => {
         target.value = '';
       });
       return;
@@ -781,7 +935,28 @@ function bindEvents() {
   });
 
   document.addEventListener('keydown', (event) => {
-    if (isSpinLocked()) {
+    if (isSpinLocked() || isModalOpen()) {
+      return;
+    }
+
+    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+      const activeRow = document.activeElement?.closest('.option-row');
+      if (activeRow instanceof HTMLElement) {
+        const slotId = activeRow.dataset.slotId;
+        const optionId = activeRow.dataset.optionId;
+        const slot = getState().slots.find((entry) => entry.id === slotId);
+
+        if (slot?.linksMode && slotId && optionId) {
+          event.preventDefault();
+          const option = slot.options.find((entry) => entry.id === optionId);
+          const nextUrl = window.prompt('Paste link URL', option?.url ?? '');
+
+          if (nextUrl !== null) {
+            updateOptionLink(slotId, optionId, nextUrl);
+            scheduleRender();
+          }
+        }
+      }
       return;
     }
 
@@ -808,8 +983,15 @@ function bindEvents() {
       event.preventDefault();
       const slotId = target.dataset.slotId;
       if (slotId) {
-        handleAddOption(slotId, target.value);
-        target.value = '';
+        submitAddOption(slotId);
+      }
+    }
+
+    if (target.dataset.action === 'add-option-link' && event.key === 'Enter') {
+      event.preventDefault();
+      const slotId = target.dataset.slotId;
+      if (slotId) {
+        submitAddOption(slotId);
       }
     }
 
@@ -875,6 +1057,12 @@ function bindEvents() {
 
     if (target.dataset.action === 'toggle-eliminate-on-spin' && target.dataset.slotId) {
       setSlotEliminateOnSpin(target.dataset.slotId, target.checked);
+      scheduleRender();
+      return;
+    }
+
+    if (target.dataset.action === 'toggle-links-mode' && target.dataset.slotId) {
+      setSlotLinksMode(target.dataset.slotId, target.checked);
       scheduleRender();
     }
   });

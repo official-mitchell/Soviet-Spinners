@@ -1,5 +1,5 @@
 // Session store: Slot/option CRUD, CSV import, spin mechanics, and localStorage persistence.
-// Updated: 2026-08-05 — per-slot eliminateOnSpin toggle for spin draws.
+// Updated: 2026-08-05 — links mode, option URLs, and link CSV import.
 
 import { DEFAULT_SLOT_TITLE, REVEAL_MODES } from './constants.js';
 import {
@@ -10,7 +10,7 @@ import {
   normalizeSession,
 } from './models.js';
 import { clearRaw, readRaw, writeRaw } from './storage.js';
-import { processCsvForImport } from './csv-import.js';
+import { processCsvForImport, processLinkCsvForImport, normalizeOptionUrl } from './csv-import.js';
 import { buildSpinPlan, shuffleArray } from './spin.js';
 
 /** @type {import('./types.js').SessionState} */
@@ -162,16 +162,17 @@ function eliminateOption(slotIndex, optionIndex) {
 /**
  * @param {string} slotId
  * @param {string} label
+ * @param {string} [url]
  * @returns {import('./types.js').Option}
  */
-export function addOption(slotId, label) {
+export function addOption(slotId, label, url) {
   const trimmed = label.trim();
   if (!trimmed) {
     throw new Error('Option label cannot be empty');
   }
 
   const slotIndex = requireSlot(slotId);
-  const option = createOptionEntity(trimmed);
+  const option = createOptionEntity(trimmed, url);
   state.slots[slotIndex].options.push(option);
   saveSession();
   return structuredClone(option);
@@ -181,21 +182,35 @@ export function addOption(slotId, label) {
  * @param {string} slotId
  * @param {string} optionId
  * @param {string} label
+ * @param {string} [url]
  * @returns {import('./types.js').Option}
  */
-export function updateOption(slotId, optionId, label) {
+export function updateOption(slotId, optionId, label, url) {
   const trimmed = label.trim();
   if (!trimmed) {
     throw new Error('Option label cannot be empty');
   }
 
   const { slotIndex, optionIndex } = requireOption(slotId, optionId);
-  state.slots[slotIndex].options[optionIndex] = {
-    ...state.slots[slotIndex].options[optionIndex],
+  const current = state.slots[slotIndex].options[optionIndex];
+  /** @type {import('./types.js').Option} */
+  const next = {
+    ...current,
     label: trimmed,
   };
+
+  if (url !== undefined) {
+    const normalizedUrl = normalizeOptionUrl(url);
+    if (normalizedUrl) {
+      next.url = normalizedUrl;
+    } else {
+      delete next.url;
+    }
+  }
+
+  state.slots[slotIndex].options[optionIndex] = next;
   saveSession();
-  return structuredClone(state.slots[slotIndex].options[optionIndex]);
+  return structuredClone(next);
 }
 
 /**
@@ -274,6 +289,38 @@ export function importCsvOptions(slotId, csvText) {
   return structuredClone(summary);
 }
 
+/**
+ * @param {string} slotId
+ * @param {string} csvText
+ * @returns {import('./types.js').CsvImportSummary}
+ */
+export function importLinkCsvOptions(slotId, csvText) {
+  const slotIndex = requireSlot(slotId);
+  const existingLabels = state.slots[slotIndex].options.map((option) => option.label);
+  const { added, summary } = processLinkCsvForImport(csvText, existingLabels);
+
+  for (const entry of added) {
+    state.slots[slotIndex].options.push(createOptionEntity(entry.label, entry.url));
+  }
+
+  saveSession();
+  return structuredClone(summary);
+}
+
+/**
+ * @param {string} slotId
+ */
+export function clearSlotOptions(slotId) {
+  const index = requireSlot(slotId);
+  state.slots[index] = {
+    ...state.slots[index],
+    options: [],
+    eliminatedOptions: [],
+    currentResult: null,
+  };
+  saveSession();
+}
+
 /** @param {number} totalRounds */
 export function setTotalRounds(totalRounds) {
   const parsed = Number(totalRounds);
@@ -321,6 +368,40 @@ export function setSlotEliminateOnSpin(slotId, eliminateOnSpin) {
   const index = requireSlot(slotId);
   state.slots[index] = { ...state.slots[index], eliminateOnSpin };
   saveSession();
+}
+
+/**
+ * @param {string} slotId
+ * @param {boolean} linksMode
+ */
+export function setSlotLinksMode(slotId, linksMode) {
+  const index = requireSlot(slotId);
+  state.slots[index] = { ...state.slots[index], linksMode };
+  saveSession();
+}
+
+/**
+ * @param {string} slotId
+ * @param {string} optionId
+ * @param {string} url
+ * @returns {import('./types.js').Option}
+ */
+export function updateOptionLink(slotId, optionId, url) {
+  const { slotIndex, optionIndex } = requireOption(slotId, optionId);
+  const current = state.slots[slotIndex].options[optionIndex];
+  const normalizedUrl = normalizeOptionUrl(url);
+
+  /** @type {import('./types.js').Option} */
+  const next = { ...current };
+  if (normalizedUrl) {
+    next.url = normalizedUrl;
+  } else {
+    delete next.url;
+  }
+
+  state.slots[slotIndex].options[optionIndex] = next;
+  saveSession();
+  return structuredClone(next);
 }
 
 export function shuffleAll() {

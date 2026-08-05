@@ -1,5 +1,5 @@
-// Single-column CSV parsing and import processing — checklist §3.
-// Created: 2026-08-05.
+// Single-column and link-pair CSV parsing and import processing — checklist §3.
+// Updated: 2026-08-05 — two-column name/link CSV import helpers.
 
 /** @typedef {Object} CsvImportSummary
  * @property {number} added
@@ -55,40 +55,149 @@ export function isMalformedRow(value) {
   return !isPlainLabel(value);
 }
 
+const LINK_HEADER_TOKENS = new Set([
+  'link',
+  'links',
+  'url',
+  'urls',
+  'href',
+  'address',
+  'website',
+]);
+
+/**
+ * @param {string | undefined} raw
+ * @returns {string | undefined}
+ */
+export function normalizeOptionUrl(raw) {
+  if (!raw || typeof raw !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (/^www\./i.test(trimmed) || /^[^\s]+\.[^\s]+/.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+
+  return undefined;
+}
+
+/**
+ * @param {string} value
+ * @returns {boolean}
+ */
+export function isValidLinkUrl(value) {
+  return Boolean(normalizeOptionUrl(value));
+}
+
+/**
+ * @param {string} line
+ * @returns {string[]}
+ */
+export function parseCsvRow(line) {
+  /** @type {string[]} */
+  const fields = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+
+    if (char === '"') {
+      if (inQuotes && line[index + 1] === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      fields.push(current);
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  fields.push(current);
+  return fields.map((field) => field.trim());
+}
+
 /**
  * @param {string} line
  * @returns {string}
  */
 export function extractFirstCsvField(line) {
-  const trimmed = line.trim();
-  if (!trimmed) {
-    return '';
+  return parseCsvRow(line)[0] ?? '';
+}
+
+/**
+ * @typedef {{ name: string, url: string }} LinkCsvRow
+ */
+
+/**
+ * @param {string} text
+ * @returns {LinkCsvRow[]}
+ */
+export function parseTwoColumnCsv(text) {
+  if (!text) {
+    return [];
   }
 
-  if (trimmed.startsWith('"')) {
-    let value = '';
-    for (let index = 1; index < trimmed.length; index += 1) {
-      const char = trimmed[index];
-      if (char === '"') {
-        if (trimmed[index + 1] === '"') {
-          value += '"';
-          index += 1;
-        } else {
-          break;
-        }
-      } else {
-        value += char;
-      }
-    }
-    return value;
+  const rows = text
+    .split(/\r?\n/)
+    .map((line) => {
+      const fields = parseCsvRow(line);
+      return {
+        name: fields[0] ?? '',
+        url: fields[1] ?? '',
+      };
+    })
+    .filter((row) => row.name.trim() || row.url.trim());
+
+  while (rows.length > 0 && !rows[rows.length - 1].name.trim() && !rows[rows.length - 1].url.trim()) {
+    rows.pop();
   }
 
-  const commaIndex = trimmed.indexOf(',');
-  if (commaIndex === -1) {
-    return trimmed;
+  return rows;
+}
+
+/**
+ * @param {LinkCsvRow[]} rows
+ * @returns {LinkCsvRow[]}
+ */
+export function skipDetectedLinkHeaderRow(rows) {
+  if (rows.length === 0) {
+    return rows;
   }
 
-  return trimmed.slice(0, commaIndex).trim();
+  const first = rows[0];
+  const nameHeader = first.name.trim().toLowerCase();
+  const urlHeader = first.url.trim().toLowerCase();
+
+  if (
+    (HEADER_TOKENS.has(nameHeader) || nameHeader === 'name') &&
+    LINK_HEADER_TOKENS.has(urlHeader)
+  ) {
+    return rows.slice(1);
+  }
+
+  if (!isPlainLabel(first.name) && LINK_HEADER_TOKENS.has(urlHeader)) {
+    return rows.slice(1);
+  }
+
+  return rows;
 }
 
 /**
@@ -172,6 +281,52 @@ export function processCsvForImport(csvText, existingLabels) {
 }
 
 /**
+ * @param {string} csvText
+ * @param {string[]} existingLabels
+ * @returns {{ added: Array<{ label: string, url: string }>, summary: CsvImportSummary }}
+ */
+export function processLinkCsvForImport(csvText, existingLabels) {
+  const parsedRows = skipDetectedLinkHeaderRow(parseTwoColumnCsv(csvText));
+  const existingLower = new Set(existingLabels.map((label) => label.trim().toLowerCase()));
+  const batchLower = new Set();
+
+  /** @type {Array<{ label: string, url: string }>} */
+  const added = [];
+  /** @type {string[]} */
+  const malformedRows = [];
+  let duplicatesSkipped = 0;
+
+  for (const row of parsedRows) {
+    const label = row.name.trim();
+    const url = normalizeOptionUrl(row.url);
+
+    if (isMalformedRow(label) || !url) {
+      malformedRows.push(formatLinkMalformedRow(row));
+      continue;
+    }
+
+    const lower = label.toLowerCase();
+    if (existingLower.has(lower) || batchLower.has(lower)) {
+      duplicatesSkipped += 1;
+      continue;
+    }
+
+    added.push({ label, url });
+    batchLower.add(lower);
+  }
+
+  return {
+    added,
+    summary: {
+      added: added.length,
+      duplicatesSkipped,
+      malformedCount: malformedRows.length,
+      malformedRows,
+    },
+  };
+}
+
+/**
  * @param {import('./types.js').CsvImportSummary} summary
  * @returns {string}
  */
@@ -193,4 +348,14 @@ function formatMalformedRow(row) {
     return '(empty row)';
   }
   return row.trim();
+}
+
+/**
+ * @param {{ name: string, url: string }} row
+ * @returns {string}
+ */
+function formatLinkMalformedRow(row) {
+  const name = row.name.trim() || '(empty name)';
+  const url = row.url.trim() || '(empty link)';
+  return `${name} | ${url}`;
 }
