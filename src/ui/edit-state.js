@@ -1,11 +1,16 @@
 // Tracks inline edits and scroll position across re-renders — review follow-up.
-// Updated: 2026-08-05 — defer render while editing total rounds.
+// Updated: 2026-08-05 — defer render while editing manual CSV textarea.
 
 /**
  * @returns {boolean}
  */
 export function shouldDeferRender() {
-  return hasInlineOptionEdit() || hasFocusedSlotTitleEdit() || hasFocusedTotalRoundsEdit();
+  return (
+    hasInlineOptionEdit() ||
+    hasFocusedSlotTitleEdit() ||
+    hasFocusedTotalRoundsEdit() ||
+    hasFocusedManualCsvEdit()
+  );
 }
 
 /**
@@ -32,6 +37,14 @@ export function hasFocusedSlotTitleEdit() {
     active instanceof HTMLInputElement &&
     active.dataset.action === 'edit-slot-title'
   );
+}
+
+/**
+ * @returns {boolean}
+ */
+export function hasFocusedManualCsvEdit() {
+  const active = document.activeElement;
+  return active instanceof HTMLTextAreaElement && active.dataset.action === 'manual-csv-input';
 }
 
 /**

@@ -1,5 +1,5 @@
 // Application bootstrap and event wiring — Slot Management UI §2–§7.
-// Updated: 2026-08-05 — links mode, link CSV import, and slot action menus.
+// Updated: 2026-08-05 — manual CSV paste import for name/link rows.
 
 import { countDrawableSlots } from '../data/spin.js';
 import {
@@ -57,11 +57,14 @@ import {
   shouldDeferRender,
 } from './edit-state.js';
 
-/** @type {{ focusSlotTitleId: string | null, focusAddOptionSlotId: string | null, focusAddLinkSlotId: string | null, importSummaries: Record<string, import('../data/types.js').CsvImportSummary>, spinningSlotIds: string[], spinLocked: boolean, spinError: string | null, activeView: 'slots' | 'history', spinDrawLabels: Record<string, string> }} */
+/** @type {{ focusSlotTitleId: string | null, focusAddOptionSlotId: string | null, focusAddLinkSlotId: string | null, focusManualCsvSlotId: string | null, openManualCsvSlotId: string | null, manualCsvDrafts: Record<string, string>, importSummaries: Record<string, import('../data/types.js').CsvImportSummary>, spinningSlotIds: string[], spinLocked: boolean, spinError: string | null, activeView: 'slots' | 'history', spinDrawLabels: Record<string, string> }} */
 const uiState = {
   focusSlotTitleId: null,
   focusAddOptionSlotId: null,
   focusAddLinkSlotId: null,
+  focusManualCsvSlotId: null,
+  openManualCsvSlotId: null,
+  manualCsvDrafts: {},
   importSummaries: {},
   spinningSlotIds: [],
   spinLocked: false,
@@ -111,6 +114,13 @@ function doRender(next = {}) {
   uiState.focusSlotTitleId = next.focusSlotTitleId ?? null;
   uiState.focusAddOptionSlotId = next.focusAddOptionSlotId ?? null;
   uiState.focusAddLinkSlotId = next.focusAddLinkSlotId ?? null;
+  uiState.focusManualCsvSlotId = next.focusManualCsvSlotId ?? null;
+  if ('openManualCsvSlotId' in next) {
+    uiState.openManualCsvSlotId = next.openManualCsvSlotId ?? null;
+  }
+  if (next.manualCsvDrafts) {
+    uiState.manualCsvDrafts = next.manualCsvDrafts;
+  }
   if (next.importSummaries) {
     uiState.importSummaries = next.importSummaries;
   }
@@ -146,6 +156,7 @@ function doRender(next = {}) {
   uiState.focusSlotTitleId = null;
   uiState.focusAddOptionSlotId = null;
   uiState.focusAddLinkSlotId = null;
+  uiState.focusManualCsvSlotId = null;
   if (!spinInProgress) {
     uiState.spinDrawLabels = {};
   }
@@ -678,17 +689,43 @@ function handleOptionDrop(slotId, sourceOptionId, targetOptionId) {
 
 /**
  * @param {string} slotId
- * @param {File} file
- * @param {'single' | 'links'} format
+ * @param {string} csvText
  */
-async function handleCsvImport(slotId, file, format = 'single') {
+function handleManualCsvImport(slotId, csvText) {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  const trimmed = csvText.trim();
+  if (!trimmed) {
+    return;
+  }
+
+  const summary = importLinkCsvOptions(slotId, trimmed);
+  const { [slotId]: _removed, ...remainingDrafts } = uiState.manualCsvDrafts;
+
+  closeAllImportMenus();
+  scheduleRender({
+    openManualCsvSlotId: null,
+    manualCsvDrafts: remainingDrafts,
+    importSummaries: {
+      ...uiState.importSummaries,
+      [slotId]: summary,
+    },
+  });
+}
+
+/**
+ * @param {string} slotId
+ * @param {File} file
+ */
+async function handleCsvImport(slotId, file) {
   if (isSpinLocked()) {
     return;
   }
 
   const text = await file.text();
-  const summary =
-    format === 'links' ? importLinkCsvOptions(slotId, text) : importCsvOptions(slotId, text);
+  const summary = importCsvOptions(slotId, text);
 
   closeAllImportMenus();
   scheduleRender({
@@ -716,6 +753,13 @@ function bindEvents() {
 
     if (target.dataset.action === 'edit-slot-title' && target.dataset.slotId) {
       syncReelHeaderTitle(target.dataset.slotId, target.value);
+    }
+
+    if (target.dataset.action === 'manual-csv-input' && target.dataset.slotId) {
+      uiState.manualCsvDrafts = {
+        ...uiState.manualCsvDrafts,
+        [target.dataset.slotId]: target.value,
+      };
     }
   });
 
@@ -790,12 +834,30 @@ function bindEvents() {
         break;
       case 'import-csv-links':
         if (slotId) {
-          const fileInput = document.querySelector(
-            `[data-action="csv-file"][data-import-format="links"][data-slot-id="${slotId}"]`,
+          closeAllImportMenus();
+          scheduleRender({
+            openManualCsvSlotId: slotId,
+            focusManualCsvSlotId: slotId,
+          });
+        }
+        break;
+      case 'import-manual-csv':
+        if (slotId) {
+          const textarea = document.querySelector(
+            `[data-action="manual-csv-input"][data-slot-id="${slotId}"]`,
           );
-          if (fileInput instanceof HTMLInputElement) {
-            fileInput.click();
+          if (textarea instanceof HTMLTextAreaElement) {
+            handleManualCsvImport(slotId, textarea.value);
           }
+        }
+        break;
+      case 'close-manual-csv':
+        if (slotId) {
+          const { [slotId]: _removed, ...remainingDrafts } = uiState.manualCsvDrafts;
+          scheduleRender({
+            openManualCsvSlotId: null,
+            manualCsvDrafts: remainingDrafts,
+          });
         }
         break;
       case 'focus-add-option':
@@ -917,8 +979,7 @@ function bindEvents() {
     }
 
     if (target.dataset.action === 'csv-file' && target.files?.[0] && target.dataset.slotId) {
-      const format = target.dataset.importFormat === 'links' ? 'links' : 'single';
-      handleCsvImport(target.dataset.slotId, target.files[0], format).finally(() => {
+      handleCsvImport(target.dataset.slotId, target.files[0]).finally(() => {
         target.value = '';
       });
       return;
@@ -992,6 +1053,18 @@ function bindEvents() {
       const slotId = target.dataset.slotId;
       if (slotId) {
         submitAddOption(slotId);
+      }
+    }
+
+    if (
+      target.dataset.action === 'manual-csv-input' &&
+      event.key === 'Enter' &&
+      (event.metaKey || event.ctrlKey)
+    ) {
+      event.preventDefault();
+      const slotId = target.dataset.slotId;
+      if (slotId) {
+        handleManualCsvImport(slotId, target.value);
       }
     }
 

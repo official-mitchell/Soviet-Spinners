@@ -1,5 +1,5 @@
 /* App layout and components — Soviet Spinners §2–§7 visual system */
-/* Updated: 2026-08-05 — links mode controls, import menu, slot actions menu */
+/* Updated: 2026-08-05 — manual CSV paste textarea for link imports */
 
 .app-shell {
   display: grid;
@@ -1647,6 +1647,56 @@
 
 .slot-editor__link-input--hidden {
   display: none;
+}
+
+.slot-editor__manual-csv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.slot-editor__manual-csv-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.slot-editor__manual-csv-input {
+  width: 100%;
+  min-height: 108px;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  border: var(--border-hairline) solid var(--border-gold);
+  background: var(--bg-control);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.slot-editor__manual-csv-input:focus {
+  border-color: var(--border-gold-highlight);
+  box-shadow: 0 0 12px rgba(235, 207, 123, 0.18);
+  outline: none;
+}
+
+.slot-editor__manual-csv-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-muted);
+  box-shadow: none;
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: var(--bg-control-hover);
+  color: var(--text-secondary);
 }
 
 .slot-editor__menu-wrap,

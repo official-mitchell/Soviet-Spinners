@@ -1,5 +1,5 @@
 // DOM rendering for slot management UI — checklist §2–§7.
-// Updated: 2026-08-05 — links mode UI, import menu, and slot action menu.
+// Updated: 2026-08-05 — manual CSV paste textarea for name/link imports.
 
 import { countDrawableSlots } from '../data/spin.js';
 import { getForcedSlotTitles, isForcedRoundResult, resolveHistorySlotTitle } from './history-display.js';
@@ -25,6 +25,9 @@ function slotAccentClass(index, prefix) {
  * @param {string | null} [uiState.focusSlotTitleId]
  * @param {string | null} [uiState.focusAddOptionSlotId]
  * @param {string | null} [uiState.focusAddLinkSlotId]
+ * @param {string | null} [uiState.focusManualCsvSlotId]
+ * @param {string | null} [uiState.openManualCsvSlotId]
+ * @param {Record<string, string>} [uiState.manualCsvDrafts]
  * @param {Record<string, import('../data/types.js').CsvImportSummary>} [uiState.importSummaries]
  * @param {string[]} [uiState.spinningSlotIds]
  * @param {boolean} [uiState.spinLocked]
@@ -437,6 +440,8 @@ function renderSlotEditor(slot, index, uiState = {}, spinLocked = false) {
     showLinkInput && uiState.focusAddLinkSlotId === slot.id
       ? 'slot-editor__link-input'
       : 'slot-editor__link-input slot-editor__link-input--hidden';
+  const showManualCsv = uiState.openManualCsvSlotId === slot.id;
+  const manualCsvValue = uiState.manualCsvDrafts?.[slot.id] ?? '';
 
   return `
     <article class="slot-editor ${accentClass}" data-slot-id="${slot.id}">
@@ -501,22 +506,33 @@ function renderSlotEditor(slot, index, uiState = {}, spinLocked = false) {
           />`
             : ''
         }
+        ${
+          showManualCsv
+            ? `<div class="slot-editor__manual-csv">
+            <label class="slot-editor__manual-csv-label" for="manual-csv-${slot.id}">Paste manually formatted CSV</label>
+            <textarea
+              id="manual-csv-${slot.id}"
+              class="slot-editor__manual-csv-input"
+              data-action="manual-csv-input"
+              data-slot-id="${slot.id}"
+              placeholder="Name,Link&#10;Deck A,https://example.com/a&#10;Deck B,https://example.com/b"
+              aria-label="Paste name and link CSV rows for ${escapeAttr(slot.title)}"
+              rows="4"
+              ${lockedAttr}
+            >${escapeHtml(manualCsvValue)}</textarea>
+            <div class="slot-editor__manual-csv-actions">
+              <button type="button" class="btn btn--secondary" data-action="import-manual-csv" data-slot-id="${slot.id}" ${lockedAttr}>Import rows</button>
+              <button type="button" class="btn btn--secondary btn--ghost" data-action="close-manual-csv" data-slot-id="${slot.id}" ${lockedAttr}>Cancel</button>
+            </div>
+          </div>`
+            : ''
+        }
         <input
           type="file"
           accept=".csv,text/csv"
           class="sr-only"
           data-action="csv-file"
           data-import-format="single"
-          data-slot-id="${slot.id}"
-          aria-hidden="true"
-          tabindex="-1"
-        />
-        <input
-          type="file"
-          accept=".csv,text/csv"
-          class="sr-only"
-          data-action="csv-file"
-          data-import-format="links"
           data-slot-id="${slot.id}"
           aria-hidden="true"
           tabindex="-1"
@@ -685,6 +701,16 @@ function applyPostRenderFocus(uiState) {
     if (input instanceof HTMLInputElement) {
       input.classList.remove('slot-editor__link-input--hidden');
       input.focus();
+    }
+  }
+
+  if (uiState.focusManualCsvSlotId) {
+    const textarea = document.querySelector(
+      `[data-action="manual-csv-input"][data-slot-id="${uiState.focusManualCsvSlotId}"]`,
+    );
+    if (textarea instanceof HTMLTextAreaElement) {
+      textarea.focus();
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
     }
   }
 }
