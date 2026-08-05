@@ -13,6 +13,14 @@
  */
 
 /**
+ * @typedef {Object} SlotResult
+ * @property {string} optionId
+ * @property {string} label
+ * @property {boolean} forced
+ * @property {boolean} revealed
+ */
+
+/**
  * @typedef {Object} Slot
  * @property {string} id
  * @property {string} title
@@ -20,6 +28,7 @@
  * @property {boolean} frozen
  * @property {RevealMode} revealMode
  * @property {number} order
+ * @property {SlotResult | null} [currentResult]
  */
 
 /**
@@ -34,14 +43,6 @@
  * @property {RoundResult[]} results
  * @property {string[]} forcedSlotIds
  * @property {number} timestamp
- */
-
-/**
- * @typedef {Object} SessionState
- * @property {Slot[]} slots
- * @property {number} totalRounds
- * @property {number} currentRound
- * @property {Round[]} roundHistory
  */
 
 /**

@@ -1,5 +1,8 @@
-// DOM rendering for slot management UI — checklist §2–§3.
-// Created: 2026-08-05.
+// DOM rendering for slot management UI — checklist §2–§4.
+// Updated: 2026-08-05 — per-control spin disable, spin error banner, spin lock UI.
+
+import { countDrawableSlots } from '../data/spin.js';
+import { getReelDisplayState } from './reveal.js';
 
 const ACCENT_CLASSES = ['slot-editor--accent-red', 'slot-editor--accent-gold', 'slot-editor--accent-metal'];
 
@@ -9,6 +12,9 @@ const ACCENT_CLASSES = ['slot-editor--accent-red', 'slot-editor--accent-gold', '
  * @param {string | null} [uiState.focusSlotTitleId]
  * @param {string | null} [uiState.focusAddOptionSlotId]
  * @param {Record<string, import('../data/types.js').CsvImportSummary>} [uiState.importSummaries]
+ * @param {string[]} [uiState.spinningSlotIds]
+ * @param {boolean} [uiState.spinLocked]
+ * @param {string | null} [uiState.spinError]
  */
 export function renderAppShell(session, uiState = {}) {
   const app = document.getElementById('app');
@@ -17,15 +23,27 @@ export function renderAppShell(session, uiState = {}) {
   }
 
   const sortedSlots = [...session.slots].sort((a, b) => a.order - b.order);
+  const activeCount = sortedSlots.filter((slot) => !slot.frozen).length;
+  const spinLocked = Boolean(uiState.spinLocked);
+  const unfrozenDrawable = countDrawableSlots(sortedSlots, false);
+  const anyDrawable = countDrawableSlots(sortedSlots, true);
+  const spinControls = {
+    spinLocked,
+    spinUnfrozenDisabled: spinLocked || unfrozenDrawable === 0,
+    surpriseDisabled: spinLocked || anyDrawable === 0,
+    shuffleDisabled: spinLocked,
+    unfrozenDrawable,
+    anyDrawable,
+  };
 
   app.innerHTML = `
     ${renderSidebar()}
     <main class="main">
       ${renderPageHeader()}
-      ${renderMachineHousing(sortedSlots)}
-      ${renderEditorSection(sortedSlots)}
+      ${renderMachineHousing(sortedSlots, uiState, spinControls)}
+      ${renderEditorSection(sortedSlots, uiState, spinLocked)}
     </main>
-    ${renderUtilityRail(session)}
+    ${renderUtilityRail(session, activeCount, spinLocked)}
   `;
 
   applyPostRenderFocus(uiState);
@@ -66,37 +84,87 @@ function renderPageHeader() {
 }
 
 /** @param {import('../data/types.js').Slot[]} slots */
-function renderMachineHousing(slots) {
+function renderMachineHousing(slots, uiState, spinControls) {
   return `
     <section class="machine-housing" aria-label="Slot machine">
       <h2 class="machine-housing__label">Game Night Picks</h2>
+      ${renderSpinError(uiState.spinError)}
       <div class="reel-row" id="reel-row">
-        ${slots.map((slot) => renderReelCard(slot)).join('')}
+        ${slots.map((slot) => renderReelCard(slot, uiState, spinControls.spinLocked)).join('')}
       </div>
+      ${renderSpinControls(spinControls)}
     </section>
   `;
 }
 
-/** @param {import('../data/types.js').Slot[]} slots */
-function renderEditorSection(slots) {
+/**
+ * @param {string | null | undefined} message
+ */
+function renderSpinError(message) {
+  if (!message) {
+    return '';
+  }
+
   return `
-    <section class="editor-section" aria-label="Edit slots and options">
+    <div class="spin-error" role="alert">
+      <p class="spin-error__message">${escapeHtml(message)}</p>
+      <button type="button" class="btn btn--secondary" data-action="dismiss-spin-error">Try again</button>
+    </div>
+  `;
+}
+
+/**
+ * @param {{
+ *   spinUnfrozenDisabled: boolean,
+ *   surpriseDisabled: boolean,
+ *   shuffleDisabled: boolean,
+ *   unfrozenDrawable: number,
+ *   anyDrawable: number,
+ * }} spinControls
+ */
+function renderSpinControls(spinControls) {
+  const spinUnfrozenAttr = spinControls.spinUnfrozenDisabled ? 'disabled' : '';
+  const surpriseAttr = spinControls.surpriseDisabled ? 'disabled' : '';
+  const shuffleAttr = spinControls.shuffleDisabled ? 'disabled' : '';
+  const supportText = spinControls.unfrozenDrawable === 0
+    ? 'Unfreeze at least one slot with options'
+    : `${spinControls.unfrozenDrawable} active slot${spinControls.unfrozenDrawable === 1 ? '' : 's'} will spin`;
+
+  return `
+    <div class="spin-controls">
+      <button type="button" class="btn btn--secondary" data-action="shuffle-all" ${shuffleAttr}>Shuffle all</button>
+      <button type="button" class="btn btn--spin" data-action="spin-unfrozen" ${spinUnfrozenAttr}>
+        <span class="btn--spin__label">Spin unfrozen slots</span>
+        <span class="btn--spin__support">${supportText}</span>
+      </button>
+      <button type="button" class="btn btn--secondary" data-action="surprise-me" ${surpriseAttr}>Surprise me</button>
+    </div>
+  `;
+}
+
+/** @param {import('../data/types.js').Slot[]} slots */
+function renderEditorSection(slots, uiState, spinLocked) {
+  const lockedClass = spinLocked ? ' editor-section--locked' : '';
+  const lockedAttr = spinLocked ? 'disabled' : '';
+
+  return `
+    <section class="editor-section${lockedClass}" aria-label="Edit slots and options">
       <div class="editor-section__header">
         <h2 class="editor-section__title">Edit slots &amp; options</h2>
-        <button type="button" class="btn btn--secondary" data-action="add-slot">Add slot</button>
+        <button type="button" class="btn btn--secondary" data-action="add-slot" ${lockedAttr}>Add slot</button>
       </div>
       <div class="slot-editors" id="slot-editors">
-        ${slots.map((slot, index) => renderSlotEditor(slot, index, uiState.importSummaries?.[slot.id])).join('')}
-        ${renderAddSlotCard()}
+        ${slots.map((slot, index) => renderSlotEditor(slot, index, uiState.importSummaries?.[slot.id], spinLocked)).join('')}
+        ${renderAddSlotCard(spinLocked)}
       </div>
     </section>
   `;
 }
 
 /** @param {import('../data/types.js').SessionState} session */
-function renderUtilityRail(session) {
-  const activeCount = session.slots.filter((slot) => !slot.frozen).length;
+function renderUtilityRail(session, activeCount, spinLocked) {
   const frozenCount = session.slots.filter((slot) => slot.frozen).length;
+  const unlockDisabled = frozenCount === 0 || spinLocked ? 'disabled' : '';
 
   return `
     <aside class="utility-rail" aria-label="Round and slot utilities">
@@ -118,41 +186,101 @@ function renderUtilityRail(session) {
           <span class="stat-chip__label">Frozen</span>
         </div>
       </div>
-      <button type="button" class="btn btn--secondary btn--block" disabled>Unlock all</button>
-      <button type="button" class="btn btn--primary btn--block" data-action="add-slot">Add slot +</button>
+      <button type="button" class="btn btn--secondary btn--block" data-action="unlock-all" ${unlockDisabled}>Unlock all</button>
+      <button type="button" class="btn btn--primary btn--block" data-action="add-slot" ${spinLocked ? 'disabled' : ''}>Add slot +</button>
     </aside>
   `;
 }
 
 /** @param {import('../data/types.js').Slot} slot */
-function renderReelCard(slot) {
-  const preview = slot.options[0]?.label ?? '—';
+function renderReelCard(slot, uiState = {}, spinLocked = false) {
+  const spinning = uiState.spinningSlotIds?.includes(slot.id);
+  const display = getReelDisplayState(slot);
+  const controlDisabled = spinLocked ? 'disabled' : '';
+  const viewportClass = [
+    'reel-card__viewport',
+    spinning ? 'reel-card__viewport--spinning' : '',
+    display.kind === 'gated-prompt' ? 'reel-card__viewport--gated' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const resultMarkup = spinning
+    ? '<p class="reel-card__placeholder reel-card__placeholder--spinning">Spinning…</p>'
+    : renderReelViewportContent(display, slot);
+
+  const forceSelectOptions = slot.options.length
+    ? slot.options
+        .map(
+          (option) =>
+            `<option value="${escapeAttr(option.id)}">${escapeHtml(option.label)}</option>`,
+        )
+        .join('')
+    : '<option value="">No options</option>';
+
   return `
     <article class="reel-card ${slot.frozen ? 'reel-card--frozen' : ''}" data-slot-id="${slot.id}">
       <header class="reel-card__header">${escapeHtml(slot.title)}</header>
-      <div class="reel-card__viewport">
-        ${
-          slot.options.length
-            ? `<p class="reel-card__result">${escapeHtml(preview)}</p>`
-            : '<p class="reel-card__placeholder">Add options below</p>'
-        }
+      <div class="${viewportClass}">
+        ${resultMarkup}
       </div>
+      <div class="reel-card__controls">
+        <button
+          type="button"
+          class="btn btn--secondary btn--freeze"
+          data-action="toggle-freeze"
+          data-slot-id="${slot.id}"
+          ${controlDisabled}
+        >${slot.frozen ? 'Unfreeze' : 'Freeze'}</button>
+        <label class="reel-card__force-select">
+          <span class="sr-only">Force select for ${escapeAttr(slot.title)}</span>
+          <select data-action="force-select" data-slot-id="${slot.id}" ${slot.options.length === 0 || spinLocked ? 'disabled' : ''}>
+            <option value="">Force select…</option>
+            ${forceSelectOptions}
+          </select>
+        </label>
+      </div>
+      ${
+        display.kind === 'gated-prompt'
+          ? `<button type="button" class="btn btn--secondary btn--block reel-card__reveal" data-action="reveal-slot" data-slot-id="${slot.id}">Reveal &amp; Launch</button>`
+          : ''
+      }
     </article>
   `;
+}
+
+/**
+ * @param {import('./reveal.js').ReelDisplayState} display
+ * @param {import('../data/types.js').Slot} slot
+ */
+function renderReelViewportContent(display, slot) {
+  if (display.kind === 'empty') {
+    return `<p class="reel-card__placeholder">${escapeHtml(display.text)}</p>`;
+  }
+
+  if (display.kind === 'gated-prompt') {
+    return `<p class="reel-card__gated-prompt">${escapeHtml(display.text)}</p>`;
+  }
+
+  const forcedClass = display.forced ? ' reel-card__result--forced' : '';
+  return `<p class="reel-card__result${forcedClass}">${escapeHtml(display.text)}</p>`;
 }
 
 /**
  * @param {import('../data/types.js').Slot} slot
  * @param {number} index
  * @param {import('../data/types.js').CsvImportSummary} [importSummary]
+ * @param {boolean} [spinLocked]
  */
-function renderSlotEditor(slot, index, importSummary) {
+function renderSlotEditor(slot, index, importSummary, spinLocked = false) {
   const accentClass = ACCENT_CLASSES[index % ACCENT_CLASSES.length];
+  const lockedAttr = spinLocked ? 'disabled' : '';
+  const dragEnabled = spinLocked ? 'false' : 'true';
 
   return `
     <article class="slot-editor ${accentClass}" data-slot-id="${slot.id}">
       <header class="slot-editor__header">
-        <span class="slot-editor__drag" draggable="true" data-action="drag-slot" data-slot-id="${slot.id}" aria-label="Reorder slot" title="Drag to reorder">⋮⋮</span>
+        <span class="slot-editor__drag" draggable="${dragEnabled}" data-action="drag-slot" data-slot-id="${slot.id}" aria-label="Reorder slot" title="Drag to reorder">⋮⋮</span>
         <input
           type="text"
           class="slot-editor__title-input"
@@ -161,12 +289,13 @@ function renderSlotEditor(slot, index, importSummary) {
           value="${escapeAttr(slot.title)}"
           maxlength="40"
           aria-label="Slot title"
+          ${lockedAttr}
         />
-        <button type="button" class="slot-editor__icon-btn" data-action="focus-add-option" data-slot-id="${slot.id}" aria-label="Add option">+</button>
-        <button type="button" class="slot-editor__icon-btn slot-editor__icon-btn--danger" data-action="delete-slot" data-slot-id="${slot.id}" aria-label="Delete slot">🗑</button>
+        <button type="button" class="slot-editor__icon-btn" data-action="focus-add-option" data-slot-id="${slot.id}" aria-label="Add option" ${lockedAttr}>+</button>
+        <button type="button" class="slot-editor__icon-btn slot-editor__icon-btn--danger" data-action="delete-slot" data-slot-id="${slot.id}" aria-label="Delete slot" ${lockedAttr}>🗑</button>
       </header>
       <ul class="slot-editor__options" data-slot-id="${slot.id}">
-        ${slot.options.map((option) => renderOptionRow(slot.id, option)).join('')}
+        ${slot.options.map((option) => renderOptionRow(slot.id, option, spinLocked)).join('')}
       </ul>
       <footer class="slot-editor__footer">
         ${importSummary ? renderImportSummary(importSummary) : ''}
@@ -178,8 +307,9 @@ function renderSlotEditor(slot, index, importSummary) {
             data-slot-id="${slot.id}"
             placeholder="+ Add option"
             aria-label="Add option to ${escapeAttr(slot.title)}"
+            ${lockedAttr}
           />
-          <button type="button" class="btn btn--secondary btn--import" data-action="import-csv" data-slot-id="${slot.id}">
+          <button type="button" class="btn btn--secondary btn--import" data-action="import-csv" data-slot-id="${slot.id}" ${lockedAttr}>
             Import CSV
           </button>
         </div>
@@ -200,14 +330,18 @@ function renderSlotEditor(slot, index, importSummary) {
 /**
  * @param {string} slotId
  * @param {import('../data/types.js').Option} option
+ * @param {boolean} [spinLocked]
  */
-function renderOptionRow(slotId, option) {
+function renderOptionRow(slotId, option, spinLocked = false) {
+  const lockedAttr = spinLocked ? 'disabled' : '';
+  const dragEnabled = spinLocked ? 'false' : 'true';
+
   return `
     <li
       class="option-row"
       data-slot-id="${slotId}"
       data-option-id="${option.id}"
-      draggable="true"
+      draggable="${dragEnabled}"
       data-action="drag-option"
     >
       <span class="option-row__drag" aria-hidden="true">⋮⋮</span>
@@ -220,6 +354,7 @@ function renderOptionRow(slotId, option) {
         data-option-id="${option.id}"
         aria-label="${option.highlighted ? 'Remove highlight' : 'Highlight option'}"
         aria-pressed="${option.highlighted ? 'true' : 'false'}"
+        ${lockedAttr}
       >★</button>
       <div class="option-row__menu-wrap">
         <button
@@ -229,6 +364,7 @@ function renderOptionRow(slotId, option) {
           data-slot-id="${slotId}"
           data-option-id="${option.id}"
           aria-label="Option menu"
+          ${lockedAttr}
         >⋯</button>
       </div>
     </li>
@@ -254,9 +390,11 @@ function formatImportSummaryText(summary) {
   return `${summary.added} added, ${summary.duplicatesSkipped} duplicates skipped, ${summary.malformedCount} malformed rows`;
 }
 
-function renderAddSlotCard() {
+function renderAddSlotCard(spinLocked = false) {
+  const disabledAttr = spinLocked ? 'disabled' : '';
+
   return `
-    <button type="button" class="add-slot-card" data-action="add-slot">
+    <button type="button" class="add-slot-card" data-action="add-slot" ${disabledAttr}>
       <span class="add-slot-card__star" aria-hidden="true">★</span>
       <h3 class="add-slot-card__title">Add another slot</h3>
       <p class="add-slot-card__copy">Create as many slots as you want</p>

@@ -1,17 +1,25 @@
-// Application bootstrap and event wiring — Slot Management UI §2–§3.
-// Updated: 2026-08-05 — deferred render during inline edits, scroll preservation.
+// Application bootstrap and event wiring — Slot Management UI §2–§4.
+// Updated: 2026-08-05 — spin lock, atomic commit errors, preserved spinning state.
 
 import {
   addOption,
+  commitSpinDraws,
   createSlot,
   deleteOption,
   deleteSlot,
+  forceSelect,
   getState,
+  hasSpinDraws,
   importCsvOptions,
   loadSession,
+  planSpin,
   reorderOptions,
   reorderSlots,
+  revealSlot,
+  setSlotFrozen,
+  shuffleAll,
   toggleOptionHighlight,
+  unlockAll,
   updateOption,
   updateSlotTitle,
 } from '../data/index.js';
@@ -23,6 +31,7 @@ import {
   renderOptionMenu,
 } from './render.js';
 import { getDeleteSlotMessage, shouldConfirmSlotDelete } from './slot-actions.js';
+import { runSpinAnimation } from './spin-controller.js';
 import {
   captureScrollState,
   flushDeferredRender,
@@ -30,12 +39,32 @@ import {
   shouldDeferRender,
 } from './edit-state.js';
 
-/** @type {{ focusSlotTitleId: string | null, focusAddOptionSlotId: string | null, importSummaries: Record<string, import('../data/types.js').CsvImportSummary> }} */
+/** @type {{ focusSlotTitleId: string | null, focusAddOptionSlotId: string | null, importSummaries: Record<string, import('../data/types.js').CsvImportSummary>, spinningSlotIds: string[], spinLocked: boolean, spinError: string | null }} */
 const uiState = {
   focusSlotTitleId: null,
   focusAddOptionSlotId: null,
   importSummaries: {},
+  spinningSlotIds: [],
+  spinLocked: false,
+  spinError: null,
 };
+
+/** @type {boolean} */
+let spinInProgress = false;
+
+/** @type {string[]} */
+let activeSpinningSlotIds = [];
+
+/** @type {string | null} */
+let spinErrorMessage = null;
+
+const SPIN_FAILURE_MESSAGE =
+  'The spin could not be completed. Your previous results were preserved.';
+
+/** @returns {boolean} */
+function isSpinLocked() {
+  return spinInProgress;
+}
 
 /** @type {Partial<typeof uiState> | null} */
 let pendingRender = null;
@@ -60,6 +89,16 @@ function doRender(next = {}) {
   if (next.importSummaries) {
     uiState.importSummaries = next.importSummaries;
   }
+  if ('spinningSlotIds' in next) {
+    activeSpinningSlotIds = next.spinningSlotIds ?? [];
+  }
+  if ('spinError' in next) {
+    spinErrorMessage = next.spinError ?? null;
+  }
+
+  uiState.spinLocked = spinInProgress;
+  uiState.spinningSlotIds = spinInProgress ? [...activeSpinningSlotIds] : [];
+  uiState.spinError = spinErrorMessage;
 
   renderAppShell(getState(), uiState);
 
@@ -67,6 +106,112 @@ function doRender(next = {}) {
 
   uiState.focusSlotTitleId = null;
   uiState.focusAddOptionSlotId = null;
+}
+
+/**
+ * @param {boolean} includeFrozen
+ */
+async function runAnimatedSpin(includeFrozen) {
+  if (spinInProgress) {
+    return;
+  }
+
+  const plan = planSpin(includeFrozen);
+  if (!hasSpinDraws(plan)) {
+    return;
+  }
+
+  spinInProgress = true;
+  spinErrorMessage = null;
+  activeSpinningSlotIds = plan.draws.map((draw) => draw.slotId);
+  scheduleRender({ spinningSlotIds: activeSpinningSlotIds, spinError: null });
+
+  await runSpinAnimation(plan.draws, (draws) => {
+    try {
+      commitSpinDraws(draws);
+      spinErrorMessage = null;
+    } catch (error) {
+      spinErrorMessage = SPIN_FAILURE_MESSAGE;
+      console.debug('[ui] commitSpinDraws failed:', error);
+    }
+
+    spinInProgress = false;
+    activeSpinningSlotIds = [];
+    scheduleRender({ spinningSlotIds: [], spinError: spinErrorMessage });
+  });
+}
+
+function handleDismissSpinError() {
+  spinErrorMessage = null;
+  scheduleRender({ spinError: null });
+}
+
+function handleShuffleAll() {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  shuffleAll();
+  scheduleRender();
+}
+
+/**
+ * @param {string} slotId
+ */
+function handleToggleFreeze(slotId) {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  const slot = getState().slots.find((entry) => entry.id === slotId);
+  if (!slot) {
+    return;
+  }
+
+  setSlotFrozen(slotId, !slot.frozen);
+  scheduleRender();
+}
+
+function handleUnlockAll() {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  unlockAll();
+  scheduleRender();
+}
+
+/**
+ * @param {string} slotId
+ * @param {string} optionId
+ */
+function handleForceSelect(slotId, optionId) {
+  if (isSpinLocked() || !optionId) {
+    return;
+  }
+
+  try {
+    forceSelect(slotId, optionId);
+    scheduleRender();
+  } catch (error) {
+    console.debug('[ui] forceSelect failed:', error);
+  }
+}
+
+/**
+ * @param {string} slotId
+ */
+function handleRevealSlot(slotId) {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  try {
+    revealSlot(slotId);
+    scheduleRender();
+  } catch (error) {
+    console.debug('[ui] revealSlot failed:', error);
+  }
 }
 
 /**
@@ -99,6 +244,10 @@ function flushPendingRender() {
 }
 
 function handleAddSlot() {
+  if (isSpinLocked()) {
+    return;
+  }
+
   const slot = createSlot();
   scheduleRender({ focusSlotTitleId: slot.id });
 }
@@ -107,6 +256,10 @@ function handleAddSlot() {
  * @param {string} slotId
  */
 async function handleDeleteSlot(slotId) {
+  if (isSpinLocked()) {
+    return;
+  }
+
   const slot = getState().slots.find((entry) => entry.id === slotId);
   if (!slot) {
     return;
@@ -138,6 +291,10 @@ async function handleDeleteSlot(slotId) {
  * @param {string} title
  */
 function handleSlotTitleChange(slotId, title) {
+  if (isSpinLocked()) {
+    return;
+  }
+
   const trimmed = title.trim();
   if (!trimmed) {
     scheduleRender({ focusSlotTitleId: slotId });
@@ -153,6 +310,10 @@ function handleSlotTitleChange(slotId, title) {
  * @param {string} label
  */
 function handleAddOption(slotId, label) {
+  if (isSpinLocked()) {
+    return;
+  }
+
   const trimmed = label.trim();
   if (!trimmed) {
     return;
@@ -169,6 +330,10 @@ function handleAddOption(slotId, label) {
  * @param {string} fallback
  */
 function handleOptionEdit(slotId, optionId, label, fallback) {
+  if (isSpinLocked()) {
+    return;
+  }
+
   const trimmed = label.trim();
   if (!trimmed) {
     updateOption(slotId, optionId, fallback);
@@ -186,6 +351,10 @@ function handleOptionEdit(slotId, optionId, label, fallback) {
  * @param {number} direction
  */
 function handleMoveOption(slotId, optionId, direction) {
+  if (isSpinLocked()) {
+    return;
+  }
+
   const slot = getState().slots.find((entry) => entry.id === slotId);
   if (!slot) {
     return;
@@ -210,6 +379,10 @@ function handleMoveOption(slotId, optionId, direction) {
  * @param {string} targetSlotId
  */
 function handleSlotDrop(sourceSlotId, targetSlotId) {
+  if (isSpinLocked()) {
+    return;
+  }
+
   if (sourceSlotId === targetSlotId) {
     return;
   }
@@ -237,6 +410,10 @@ function handleSlotDrop(sourceSlotId, targetSlotId) {
  * @param {string} targetOptionId
  */
 function handleOptionDrop(slotId, sourceOptionId, targetOptionId) {
+  if (isSpinLocked()) {
+    return;
+  }
+
   if (sourceOptionId === targetOptionId) {
     return;
   }
@@ -265,6 +442,10 @@ function handleOptionDrop(slotId, sourceOptionId, targetOptionId) {
  * @param {File} file
  */
 async function handleCsvImport(slotId, file) {
+  if (isSpinLocked()) {
+    return;
+  }
+
   const text = await file.text();
   const summary = importCsvOptions(slotId, text);
 
@@ -298,6 +479,11 @@ function bindEvents() {
     }
 
     const action = actionElement.dataset.action;
+
+    if (isSpinLocked() && action !== 'dismiss-spin-error') {
+      return;
+    }
+
     const slotId = actionElement.dataset.slotId;
     const optionId = actionElement.dataset.optionId;
 
@@ -354,6 +540,31 @@ function bindEvents() {
           }
         }
         break;
+      case 'shuffle-all':
+        handleShuffleAll();
+        break;
+      case 'spin-unfrozen':
+        runAnimatedSpin(false);
+        break;
+      case 'surprise-me':
+        runAnimatedSpin(true);
+        break;
+      case 'toggle-freeze':
+        if (slotId) {
+          handleToggleFreeze(slotId);
+        }
+        break;
+      case 'unlock-all':
+        handleUnlockAll();
+        break;
+      case 'reveal-slot':
+        if (slotId) {
+          handleRevealSlot(slotId);
+        }
+        break;
+      case 'dismiss-spin-error':
+        handleDismissSpinError();
+        break;
       case 'edit-option':
         if (slotId && optionId) {
           const slot = getState().slots.find((entry) => entry.id === slotId);
@@ -370,7 +581,22 @@ function bindEvents() {
   });
 
   document.addEventListener('change', (event) => {
+    if (isSpinLocked()) {
+      return;
+    }
+
     const target = event.target;
+
+    if (target instanceof HTMLSelectElement && target.dataset.action === 'force-select') {
+      const slotId = target.dataset.slotId;
+      const optionId = target.value;
+      if (slotId && optionId) {
+        handleForceSelect(slotId, optionId);
+        target.value = '';
+      }
+      return;
+    }
+
     if (!(target instanceof HTMLInputElement)) {
       return;
     }
@@ -388,6 +614,10 @@ function bindEvents() {
   });
 
   document.addEventListener('keydown', (event) => {
+    if (isSpinLocked()) {
+      return;
+    }
+
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) {
       return;
@@ -424,6 +654,10 @@ function bindEvents() {
   });
 
   document.addEventListener('blur', (event) => {
+    if (isSpinLocked()) {
+      return;
+    }
+
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) {
       return;
@@ -443,6 +677,11 @@ function bindEvents() {
   }, true);
 
   document.addEventListener('dragstart', (event) => {
+    if (isSpinLocked()) {
+      event.preventDefault();
+      return;
+    }
+
     const target = event.target;
     if (!(target instanceof HTMLElement)) {
       return;
@@ -483,7 +722,7 @@ function bindEvents() {
   });
 
   document.addEventListener('dragover', (event) => {
-    if (!dragPayload) {
+    if (isSpinLocked() || !dragPayload) {
       return;
     }
 
@@ -514,7 +753,7 @@ function bindEvents() {
   document.addEventListener('drop', (event) => {
     event.preventDefault();
 
-    if (!dragPayload) {
+    if (isSpinLocked() || !dragPayload) {
       return;
     }
 

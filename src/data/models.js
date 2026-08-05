@@ -60,6 +60,7 @@ export function createDefaultSession() {
     totalRounds: DEFAULT_TOTAL_ROUNDS,
     currentRound: 1,
     roundHistory: [],
+    currentRoundForcedSlotIds: [],
   };
 }
 
@@ -100,6 +101,9 @@ export function normalizeSession(value) {
     totalRounds: normalizePositiveNumber(session.totalRounds, defaults.totalRounds),
     currentRound: normalizePositiveNumber(session.currentRound, defaults.currentRound),
     roundHistory,
+    currentRoundForcedSlotIds: Array.isArray(session.currentRoundForcedSlotIds)
+      ? session.currentRoundForcedSlotIds.filter((id) => typeof id === 'string')
+      : [],
   };
 }
 
@@ -133,6 +137,32 @@ function normalizeSlot(raw, index) {
         ? REVEAL_MODES.GATED
         : REVEAL_MODES.IMMEDIATE,
     order: typeof slot.order === 'number' ? slot.order : index,
+    currentResult: normalizeSlotResult(slot.currentResult),
+  };
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {import('./types.js').SlotResult | null}
+ */
+function normalizeSlotResult(raw) {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const result = /** @type {Record<string, unknown>} */ (raw);
+  const label = typeof result.label === 'string' ? result.label.trim() : '';
+  const optionId = typeof result.optionId === 'string' ? result.optionId : '';
+
+  if (!label || !optionId) {
+    return null;
+  }
+
+  return {
+    optionId,
+    label,
+    forced: Boolean(result.forced),
+    revealed: Boolean(result.revealed),
   };
 }
 

@@ -1,5 +1,5 @@
-/* App layout and components — Slot Management UI §2 */
-/* Created: 2026-08-05 — Shell, editor cards, modal per design handoff */
+/* App layout and components — Slot Management UI §2–§4 */
+/* Updated: 2026-08-05 — spin controls, reel animation, force-select styling */
 
 .app-shell {
   display: grid;
@@ -197,6 +197,152 @@
 
 .reel-card--frozen .reel-card__result {
   color: var(--text-frozen);
+}
+
+.reel-card__viewport--spinning {
+  animation: reel-spin 0.35s linear infinite;
+}
+
+.reel-card__viewport--gated {
+  background: linear-gradient(180deg, rgba(73, 48, 13, 0.35), transparent);
+}
+
+.reel-card__placeholder--spinning {
+  color: var(--text-gold-muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.reel-card__gated-prompt {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-gold-muted);
+  text-align: center;
+}
+
+.reel-card__result--forced {
+  color: #79d792;
+  text-shadow: 0 0 12px rgba(121, 215, 146, 0.35);
+}
+
+.reel-card__controls {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.reel-card__force-select {
+  flex: 1;
+}
+
+.reel-card__force-select select {
+  width: 100%;
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-default);
+  background: var(--bg-control);
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.btn--freeze {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  font-size: 12px;
+}
+
+.reel-card__reveal {
+  margin: 0 var(--space-3) var(--space-3);
+}
+
+.editor-section--locked {
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.spin-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(130, 13, 21, 0.35);
+  border: 1px solid #dc3438;
+  border-radius: var(--radius-sm);
+}
+
+.spin-error__message {
+  margin: 0;
+  flex: 1 1 220px;
+  color: #ffe9e8;
+  font-size: 13px;
+}
+
+.spin-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+  margin-top: var(--space-5);
+}
+
+.btn--spin {
+  flex-direction: column;
+  min-width: 220px;
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg-brand);
+  border-color: var(--border-gold);
+  color: var(--text-on-brand);
+  box-shadow: var(--shadow-button), var(--glow-red);
+}
+
+.btn--spin:hover:not(:disabled) {
+  background: var(--bg-brand-hover);
+}
+
+.btn--spin:disabled,
+.btn--secondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn--spin__label {
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.btn--spin__support {
+  margin-top: var(--space-1);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+@keyframes reel-spin {
+  0% {
+    transform: translateY(0);
+    filter: brightness(1);
+  }
+
+  50% {
+    transform: translateY(-4px);
+    filter: brightness(1.15);
+  }
+
+  100% {
+    transform: translateY(0);
+    filter: brightness(1);
+  }
 }
 
 .editor-section {

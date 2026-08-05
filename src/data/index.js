@@ -50,7 +50,25 @@ export {
   reorderOptions,
   toggleOptionHighlight,
   importCsvOptions,
+  shuffleAll,
+  planSpin,
+  commitSpinDraws,
+  spinUnfrozen,
+  surpriseMe,
+  forceSelect,
+  setSlotFrozen,
+  unlockAll,
+  setSlotRevealMode,
+  revealSlot,
 } from './store.js';
+
+export {
+  buildSpinPlan,
+  countDrawableSlots,
+  hasSpinDraws,
+  pickRandomIndex,
+  shuffleArray,
+} from './spin.js';
 
 export {
   extractFirstCsvField,

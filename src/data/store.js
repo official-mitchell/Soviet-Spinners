@@ -1,15 +1,17 @@
-// Session store: Slot/option CRUD, CSV import, derived getters, and localStorage persistence.
-// Created: 2026-08-05 — Data layer store for Hot Takes Night (checklist §1, §2.3, §3).
+// Session store: Slot/option CRUD, CSV import, spin mechanics, and localStorage persistence.
+// Updated: 2026-08-05 — atomic commitSpinDraws rollback; carried frozen round results.
 
-import { DEFAULT_SLOT_TITLE } from './constants.js';
+import { DEFAULT_SLOT_TITLE, REVEAL_MODES } from './constants.js';
 import {
   createDefaultSession,
   createOptionEntity,
+  createRoundEntity,
   createSlotEntity,
   normalizeSession,
 } from './models.js';
 import { clearRaw, readRaw, writeRaw } from './storage.js';
 import { processCsvForImport } from './csv-import.js';
+import { buildSpinPlan, shuffleArray } from './spin.js';
 
 /** @type {import('./types.js').SessionState} */
 let state = createDefaultSession();
@@ -258,6 +260,210 @@ export function importCsvOptions(slotId, csvText) {
 /** @param {number} totalRounds */
 export function setTotalRounds(totalRounds) {
   state.totalRounds = totalRounds;
+  saveSession();
+}
+
+/**
+ * @param {string} slotId
+ * @param {boolean} frozen
+ */
+export function setSlotFrozen(slotId, frozen) {
+  const index = requireSlot(slotId);
+  state.slots[index] = { ...state.slots[index], frozen };
+  saveSession();
+}
+
+export function unlockAll() {
+  state.slots = state.slots.map((slot) => ({ ...slot, frozen: false }));
+  saveSession();
+}
+
+/**
+ * @param {string} slotId
+ * @param {'immediate' | 'gated'} revealMode
+ */
+export function setSlotRevealMode(slotId, revealMode) {
+  const index = requireSlot(slotId);
+  state.slots[index] = { ...state.slots[index], revealMode };
+  saveSession();
+}
+
+export function shuffleAll() {
+  state.slots = state.slots.map((slot) => ({
+    ...slot,
+    options: shuffleArray(slot.options),
+  }));
+  saveSession();
+}
+
+/**
+ * @param {boolean} [includeFrozen]
+ * @returns {import('./spin.js').SpinPlan}
+ */
+export function planSpin(includeFrozen = false) {
+  return buildSpinPlan(state.slots, { includeFrozen });
+}
+
+/**
+ * @param {import('./spin.js').SpinDraw[]} draws
+ * @returns {import('./types.js').Round}
+ */
+export function commitSpinDraws(draws) {
+  if (draws.length === 0) {
+    throw new Error('Cannot commit an empty spin');
+  }
+
+  const snapshot = structuredClone(state);
+
+  try {
+    /** @type {import('./types.js').RoundResult[]} */
+    const results = [];
+    const forcedSlotIds = [...state.currentRoundForcedSlotIds];
+    const spunSlotIds = new Set(draws.map((draw) => draw.slotId));
+
+    /** @type {Array<{ slotIndex: number, optionIndex: number, draw: import('./spin.js').SpinDraw, revealMode: string }>} */
+    const validatedDraws = [];
+
+    for (const draw of draws) {
+      const slotIndex = requireSlot(draw.slotId);
+      const slot = state.slots[slotIndex];
+      const optionIndex = slot.options.findIndex((option) => option.id === draw.optionId);
+
+      if (optionIndex === -1) {
+        throw new Error(`Draw option not found in slot: ${draw.optionId}`);
+      }
+
+      validatedDraws.push({
+        slotIndex,
+        optionIndex,
+        draw,
+        revealMode: slot.revealMode,
+      });
+    }
+
+    for (const { slotIndex, optionIndex, draw, revealMode } of validatedDraws) {
+      state.slots[slotIndex].options.splice(optionIndex, 1);
+      state.slots[slotIndex].currentResult = {
+        optionId: draw.optionId,
+        label: draw.label,
+        forced: false,
+        revealed: revealMode === REVEAL_MODES.IMMEDIATE,
+      };
+
+      results.push({ slotId: draw.slotId, optionId: draw.optionId });
+
+      const forcedIndex = forcedSlotIds.indexOf(draw.slotId);
+      if (forcedIndex !== -1) {
+        forcedSlotIds.splice(forcedIndex, 1);
+      }
+    }
+
+    for (const slot of state.slots) {
+      if (spunSlotIds.has(slot.id)) {
+        continue;
+      }
+
+      if (slot.currentResult?.forced) {
+        results.push({
+          slotId: slot.id,
+          optionId: slot.currentResult.optionId,
+        });
+        continue;
+      }
+
+      if (slot.frozen && slot.currentResult) {
+        results.push({
+          slotId: slot.id,
+          optionId: slot.currentResult.optionId,
+        });
+      }
+    }
+
+    const round = createRoundEntity(state.currentRound);
+    round.results = results;
+    round.forcedSlotIds = forcedSlotIds.filter((slotId) =>
+      results.some((result) => result.slotId === slotId),
+    );
+
+    state.roundHistory.push(round);
+    state.currentRound += 1;
+    state.currentRoundForcedSlotIds = [];
+    saveSession();
+    return structuredClone(round);
+  } catch (error) {
+    state = snapshot;
+    throw error;
+  }
+}
+
+/**
+ * @returns {import('./types.js').Round}
+ */
+export function spinUnfrozen() {
+  const plan = planSpin(false);
+  if (plan.draws.length === 0) {
+    throw new Error('No unfrozen slots with options available to spin');
+  }
+  return commitSpinDraws(plan.draws);
+}
+
+/**
+ * @returns {import('./types.js').Round}
+ */
+export function surpriseMe() {
+  const plan = planSpin(true);
+  if (plan.draws.length === 0) {
+    throw new Error('No slots with options available to spin');
+  }
+  return commitSpinDraws(plan.draws);
+}
+
+/**
+ * @param {string} slotId
+ * @param {string} optionId
+ * @returns {import('./types.js').SlotResult}
+ */
+export function forceSelect(slotId, optionId) {
+  const { slotIndex, optionIndex } = requireOption(slotId, optionId);
+  const option = state.slots[slotIndex].options[optionIndex];
+  const slot = state.slots[slotIndex];
+
+  const result = {
+    optionId: option.id,
+    label: option.label,
+    forced: true,
+    revealed: slot.revealMode === REVEAL_MODES.IMMEDIATE,
+  };
+
+  state.slots[slotIndex].currentResult = result;
+
+  if (!state.currentRoundForcedSlotIds.includes(slotId)) {
+    state.currentRoundForcedSlotIds.push(slotId);
+  }
+
+  saveSession();
+  return structuredClone(result);
+}
+
+/**
+ * @param {string} slotId
+ */
+export function revealSlot(slotId) {
+  const index = requireSlot(slotId);
+  const slot = state.slots[index];
+
+  if (!slot.currentResult) {
+    throw new Error('No result to reveal');
+  }
+
+  if (slot.revealMode !== REVEAL_MODES.GATED) {
+    throw new Error('Only gated slots use reveal');
+  }
+
+  state.slots[index].currentResult = {
+    ...slot.currentResult,
+    revealed: true,
+  };
   saveSession();
 }
 
