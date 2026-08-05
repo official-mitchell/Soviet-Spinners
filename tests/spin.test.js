@@ -82,7 +82,7 @@ describe('Spin mechanics (§4.1–§4.2)', () => {
     assert.equal(updated.currentResult, undefined);
   });
 
-  it('forceSelect sets result, keeps pool intact, and logs forced slot id', () => {
+  it('forceSelect sets result, removes option from pool, and logs forced slot id', () => {
     const slot = getState().slots[0];
     addOption(slot.id, 'One');
     addOption(slot.id, 'Two');
@@ -93,7 +93,9 @@ describe('Spin mechanics (§4.1–§4.2)', () => {
 
     assert.equal(result.forced, true);
     assert.equal(state.slots[0].currentResult?.optionId, optionId);
-    assert.equal(state.slots[0].options.length, 2);
+    assert.equal(state.slots[0].options.length, 1);
+    assert.equal(state.slots[0].eliminatedOptions?.length, 1);
+    assert.equal(state.slots[0].eliminatedOptions?.[0]?.label, 'One');
     assert.ok(state.currentRoundForcedSlotIds.includes(slot.id));
   });
 

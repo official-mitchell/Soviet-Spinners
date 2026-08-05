@@ -1,5 +1,5 @@
 /* App layout and components — Soviet Spinners §2–§7 visual system */
-/* Updated: 2026-08-05 — editable total rounds input, history forced badges */
+/* Updated: 2026-08-05 — eliminated options panel and reel pool meta */
 
 .app-shell {
   display: grid;
@@ -195,6 +195,16 @@
   color: var(--text-gold-muted);
   border-bottom: var(--border-hairline) solid var(--border-subtle);
   text-align: center;
+}
+
+.reel-card__pool-meta {
+  margin: 0;
+  padding: var(--space-2) var(--space-4) 0;
+  text-align: center;
+  font-size: var(--type-caption);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .reel-card__frozen-badge {
@@ -695,6 +705,49 @@
   margin: 0;
   padding: var(--space-2);
   overflow-y: auto;
+}
+
+.slot-editor__eliminated {
+  border-top: var(--border-hairline) solid var(--border-subtle);
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.slot-editor__eliminated-title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.slot-editor__eliminated-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.eliminated-option {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: var(--border-hairline) dashed var(--border-subtle);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.eliminated-option__label {
+  font-size: var(--type-body-sm);
+  color: var(--text-muted);
+  text-decoration: line-through;
+  letter-spacing: 0.03em;
+  opacity: 0.82;
 }
 
 .option-row {

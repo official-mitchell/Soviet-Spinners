@@ -1,5 +1,5 @@
 // Entity factories, default session shape, and normalization on load.
-// Updated: 2026-08-05 — added normalizeSession() for corrupt/partial localStorage payloads.
+// Updated: 2026-08-05 — eliminatedOptions tracking and history backfill.
 
 import {
   DEFAULT_SLOT_TITLE,
@@ -34,6 +34,7 @@ export function createSlotEntity(title = DEFAULT_SLOT_TITLE, order = 0) {
     id: generateId(),
     title,
     options: [],
+    eliminatedOptions: [],
     frozen: false,
     revealMode: REVEAL_MODES.IMMEDIATE,
     order,
@@ -96,8 +97,10 @@ export function normalizeSession(value) {
     ? session.roundHistory.map(normalizeRound).filter(Boolean)
     : [];
 
+  const slotsWithEliminated = reconcileEliminatedOptions(normalizedSlots, roundHistory);
+
   return {
-    slots: normalizedSlots,
+    slots: slotsWithEliminated,
     totalRounds: normalizePositiveNumber(session.totalRounds, defaults.totalRounds),
     currentRound: normalizePositiveNumber(session.currentRound, defaults.currentRound),
     roundHistory,
@@ -121,6 +124,9 @@ function normalizeSlot(raw, index) {
   const options = Array.isArray(slot.options)
     ? slot.options.map(normalizeOption).filter(Boolean)
     : [];
+  const eliminatedOptions = Array.isArray(slot.eliminatedOptions)
+    ? slot.eliminatedOptions.map(normalizeOption).filter(Boolean)
+    : [];
 
   const title =
     typeof slot.title === 'string' && slot.title.trim()
@@ -131,6 +137,7 @@ function normalizeSlot(raw, index) {
     id: typeof slot.id === 'string' && slot.id ? slot.id : generateId(),
     title,
     options,
+    eliminatedOptions,
     frozen: Boolean(slot.frozen),
     revealMode:
       slot.revealMode === REVEAL_MODES.GATED
@@ -245,6 +252,45 @@ function normalizePositiveNumber(value, fallback) {
   return typeof value === 'number' && Number.isFinite(value) && value >= 1
     ? value
     : fallback;
+}
+
+/**
+ * @param {import('./types.js').Slot[]} slots
+ * @param {import('./types.js').Round[]} roundHistory
+ * @returns {import('./types.js').Slot[]}
+ */
+function reconcileEliminatedOptions(slots, roundHistory) {
+  return slots.map((slot) => {
+    /** @type {import('./types.js').Option[]} */
+    const eliminated = [...slot.eliminatedOptions];
+    const knownIds = new Set([
+      ...slot.options.map((option) => option.id),
+      ...eliminated.map((option) => option.id),
+    ]);
+
+    for (const round of roundHistory) {
+      for (const result of round.results) {
+        if (result.slotId !== slot.id || knownIds.has(result.optionId)) {
+          continue;
+        }
+
+        const restored = normalizeOption({
+          id: result.optionId,
+          label: result.label ?? 'Unknown',
+        });
+
+        if (restored) {
+          eliminated.push(restored);
+          knownIds.add(result.optionId);
+        }
+      }
+    }
+
+    return {
+      ...slot,
+      eliminatedOptions: eliminated,
+    };
+  });
 }
 
 /**

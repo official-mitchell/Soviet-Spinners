@@ -1,5 +1,5 @@
 // Session store: Slot/option CRUD, CSV import, spin mechanics, and localStorage persistence.
-// Updated: 2026-08-05 — validated setTotalRounds for §7 round counter panel.
+// Updated: 2026-08-05 — eliminate options from pool after selection; track eliminatedOptions.
 
 import { DEFAULT_SLOT_TITLE, REVEAL_MODES } from './constants.js';
 import {
@@ -140,6 +140,23 @@ function requireOption(slotId, optionId) {
     throw new Error(`Option not found: ${optionId}`);
   }
   return { slotIndex, optionIndex };
+}
+
+/**
+ * @param {number} slotIndex
+ * @param {number} optionIndex
+ * @returns {import('./types.js').Option}
+ */
+function eliminateOption(slotIndex, optionIndex) {
+  const slot = state.slots[slotIndex];
+  const [option] = slot.options.splice(optionIndex, 1);
+
+  if (!option) {
+    throw new Error('Option not found for elimination');
+  }
+
+  slot.eliminatedOptions = [...(slot.eliminatedOptions ?? []), { ...option }];
+  return option;
 }
 
 /**
@@ -365,7 +382,7 @@ export function commitSpinDraws(draws) {
     }
 
     for (const { slotIndex, optionIndex, draw, revealMode } of validatedDraws) {
-      state.slots[slotIndex].options.splice(optionIndex, 1);
+      eliminateOption(slotIndex, optionIndex);
       state.slots[slotIndex].currentResult = {
         optionId: draw.optionId,
         label: draw.label,
@@ -449,7 +466,7 @@ export function surpriseMe() {
  */
 export function forceSelect(slotId, optionId) {
   const { slotIndex, optionIndex } = requireOption(slotId, optionId);
-  const option = state.slots[slotIndex].options[optionIndex];
+  const option = eliminateOption(slotIndex, optionIndex);
   const slot = state.slots[slotIndex];
 
   const result = {

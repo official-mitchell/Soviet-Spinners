@@ -25,6 +25,7 @@
  * @property {string} id
  * @property {string} title
  * @property {Option[]} options
+ * @property {Option[]} [eliminatedOptions]
  * @property {boolean} frozen
  * @property {RevealMode} revealMode
  * @property {number} order

@@ -1,5 +1,5 @@
 // DOM rendering for slot management UI — checklist §2–§7.
-// Updated: 2026-08-05 — history title snapshots, round-over-target hint.
+// Updated: 2026-08-05 — eliminated options panel per slot editor.
 
 import { countDrawableSlots } from '../data/spin.js';
 import { getForcedSlotTitles, isForcedRoundResult, resolveHistorySlotTitle } from './history-display.js';
@@ -326,6 +326,13 @@ function renderReelCard(slot, uiState = {}, spinLocked = false) {
   const frozenBadge = slot.frozen
     ? `<span class="reel-card__frozen-badge"><span aria-hidden="true">🔒</span> Frozen</span>`
     : '';
+  const eliminatedCount = slot.eliminatedOptions?.length ?? 0;
+  const poolMeta =
+    eliminatedCount > 0
+      ? `<p class="reel-card__pool-meta">${slot.options.length} in pool · ${eliminatedCount} eliminated</p>`
+      : slot.options.length > 0
+        ? `<p class="reel-card__pool-meta">${slot.options.length} in pool</p>`
+        : '';
 
   const drumMarkup = renderReelDrumViewport(slot, display, Boolean(spinning), spinTargetLabel);
 
@@ -342,6 +349,7 @@ function renderReelCard(slot, uiState = {}, spinLocked = false) {
     <article class="reel-card ${slot.frozen ? 'reel-card--frozen' : ''}" data-slot-id="${slot.id}">
       ${frozenBadge}
       <header class="reel-card__header">${escapeHtml(slot.title)}</header>
+      ${poolMeta}
       <div class="reel-card__viewport ${display.kind === 'gated-prompt' ? 'reel-card__viewport--gated' : ''}">
         ${drumMarkup}
       </div>
@@ -401,6 +409,7 @@ function renderSlotEditor(slot, index, importSummary, spinLocked = false) {
       <ul class="slot-editor__options" data-slot-id="${slot.id}">
         ${slot.options.map((option) => renderOptionRow(slot.id, option, spinLocked)).join('')}
       </ul>
+      ${renderEliminatedOptions(slot)}
       <footer class="slot-editor__footer">
         ${importSummary ? renderImportSummary(importSummary) : ''}
         <div class="slot-editor__footer-actions">
@@ -428,6 +437,31 @@ function renderSlotEditor(slot, index, importSummary, spinLocked = false) {
         />
       </footer>
     </article>
+  `;
+}
+
+/**
+ * @param {import('../data/types.js').Slot} slot
+ */
+function renderEliminatedOptions(slot) {
+  const eliminated = slot.eliminatedOptions ?? [];
+
+  if (eliminated.length === 0) {
+    return '';
+  }
+
+  return `
+    <section class="slot-editor__eliminated" aria-label="Eliminated options for ${escapeAttr(slot.title)}">
+      <h3 class="slot-editor__eliminated-title">Eliminated (${eliminated.length})</h3>
+      <ul class="slot-editor__eliminated-list">
+        ${eliminated
+          .map(
+            (option) =>
+              `<li class="eliminated-option"><span class="eliminated-option__label">${escapeHtml(option.label)}</span></li>`,
+          )
+          .join('')}
+      </ul>
+    </section>
   `;
 }
 
