@@ -1,5 +1,5 @@
 /* App layout and components — Soviet Spinners §2–§7 visual system */
-/* Updated: 2026-08-05 — round 2: click-to-select reels, copper lever, themed accents, bigger rails */
+/* Updated: 2026-08-05 — mechanical handle assembly + sequenced spin polish */
 
 .app-shell {
   display: grid;
@@ -232,129 +232,210 @@
   box-shadow: inset 0 6px 18px rgba(0, 0, 0, 0.42);
 }
 
-.machine-lever {
+.machine-handle {
   position: relative;
-  flex: 0 0 96px;
+  flex: 0 0 108px;
   align-self: stretch;
-  width: 96px;
-  margin-top: var(--space-4);
-  padding: 0;
-  border: none;
-  background: transparent;
+  width: 108px;
+  min-height: 280px;
+  margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-2) var(--space-4);
+  --pivot-x: 50%;
+  --pivot-y: 72%;
+  --handle-angle: -12deg;
+  touch-action: none;
+  user-select: none;
   cursor: pointer;
-  perspective: 700px;
+  outline: none;
 }
 
-.machine-lever:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.machine-lever__track {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 34px;
-  width: 22px;
-  margin-left: -11px;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(90deg, var(--neutral-950), var(--neutral-800) 45%, var(--neutral-950));
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(190, 145, 52, 0.25);
-}
-
-.machine-lever__base {
-  position: absolute;
-  left: 50%;
-  bottom: 8px;
-  width: 58px;
-  height: 34px;
-  margin-left: -29px;
+.machine-handle:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--border-gold-highlight);
   border-radius: var(--radius-sm);
-  background: linear-gradient(180deg, var(--copper-500), var(--copper-900));
-  border: var(--border-hairline) solid var(--copper-300);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-.machine-lever__assembly {
-  position: absolute;
-  inset: 0 0 34px;
-  transform-origin: top center;
-  transform-style: preserve-3d;
-  transition: transform var(--motion-emphasis) var(--ease-mechanical);
+.machine-handle--disabled,
+.machine-handle[disabled] {
+  cursor: not-allowed;
+  opacity: 0.62;
+  filter: saturate(0.72);
 }
 
-.machine-lever__arm {
+.machine-handle__track {
   position: absolute;
   left: 50%;
-  top: 26px;
-  bottom: 0;
-  width: 18px;
-  margin-left: -9px;
+  top: 8%;
+  bottom: 18%;
+  width: 26px;
+  margin-left: -13px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, #0a0b0d 0%, #1f2228 42%, #0a0b0d 100%);
+  box-shadow:
+    inset 0 0 14px rgba(0, 0, 0, 0.75),
+    inset 0 0 0 1px rgba(190, 145, 52, 0.18);
+}
+
+.machine-handle__pivot {
+  position: absolute;
+  left: 50%;
+  top: var(--pivot-y);
+  width: 62px;
+  height: 62px;
+  margin: -31px 0 0 -31px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.machine-handle__pivot-plate {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 28%, rgba(227, 182, 118, 0.45) 0%, transparent 38%),
+    linear-gradient(180deg, #4a3318 0%, #1a1208 55%, #0d0904 100%);
+  border: 2px solid rgba(189, 127, 63, 0.55);
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.55),
+    inset 0 2px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -8px 14px rgba(0, 0, 0, 0.45);
+}
+
+.machine-handle__pivot-collar {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #6d4813 0%, #1a1208 70%);
+  border: 1px solid rgba(227, 182, 118, 0.35);
+  box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.65);
+}
+
+.machine-handle__pivot-bolt {
+  position: absolute;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #d9b654 0%, #3c2510 80%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.machine-handle__pivot-bolt--left {
+  left: 6px;
+}
+
+.machine-handle__pivot-bolt--right {
+  right: 6px;
+}
+
+.machine-handle__lever {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  transform-origin: var(--pivot-x) var(--pivot-y);
+  transform: rotate(var(--handle-angle));
+  pointer-events: none;
+}
+
+.machine-handle__shaft {
+  position: absolute;
+  left: 50%;
+  top: 11%;
+  bottom: calc(100% - var(--pivot-y) + 8px);
+  width: 12px;
+  margin-left: -6px;
   border-radius: var(--radius-pill);
   background: linear-gradient(
     90deg,
-    var(--copper-900) 0%,
-    var(--copper-500) 30%,
-    var(--copper-100) 50%,
-    var(--copper-500) 70%,
-    var(--copper-900) 100%
+    #1a0f08 0%,
+    #4a2b14 18%,
+    #8f5a2c 42%,
+    #e3b676 50%,
+    #8f5a2c 58%,
+    #3c2510 82%,
+    #120a05 100%
   );
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 8px 16px rgba(0, 0, 0, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 10px 18px rgba(0, 0, 0, 0.45);
 }
 
-.machine-lever__knob {
+.machine-handle__shaft-collar {
   position: absolute;
   left: 50%;
-  top: 0;
-  width: 48px;
-  height: 48px;
-  margin-left: -24px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 32% 26%, var(--copper-100) 0%, var(--copper-300) 35%, var(--copper-700) 75%, var(--copper-900) 100%);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.5),
-    inset 0 -6px 10px rgba(0, 0, 0, 0.35);
+  bottom: -5px;
+  width: 18px;
+  height: 10px;
+  margin-left: -9px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(180deg, #6d4813, #2c1c07);
+  border: 1px solid rgba(227, 182, 118, 0.35);
 }
 
-.machine-lever__knob::after {
+.machine-handle__grip {
+  position: absolute;
+  left: 50%;
+  top: 4%;
+  width: 46px;
+  height: 50px;
+  margin-left: -23px;
+  border-radius: 50% 50% 46% 46%;
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255, 210, 170, 0.28) 0%, transparent 34%),
+    radial-gradient(ellipse at 70% 78%, rgba(0, 0, 0, 0.55) 0%, transparent 52%),
+    radial-gradient(circle at 50% 55%, #6b2418 0%, #3a120d 48%, #180705 100%);
+  border: 1px solid rgba(120, 38, 24, 0.85);
+  box-shadow:
+    0 10px 18px rgba(0, 0, 0, 0.55),
+    inset 0 3px 0 rgba(255, 220, 190, 0.18),
+    inset 0 -10px 16px rgba(0, 0, 0, 0.42);
+}
+
+.machine-handle__grip::after {
   content: "";
   position: absolute;
-  top: 20%;
-  left: 20%;
-  width: 30%;
-  height: 20%;
+  top: 16%;
+  left: 22%;
+  width: 28%;
+  height: 18%;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.55);
-  filter: blur(2px);
+  background: rgba(255, 236, 214, 0.42);
+  filter: blur(1px);
 }
 
-.machine-lever:hover:not(:disabled) .machine-lever__assembly {
-  transform: translateY(10px) rotateZ(2deg) rotateX(6deg);
+.machine-handle__stop {
+  position: absolute;
+  left: 50%;
+  bottom: 10%;
+  width: 34px;
+  height: 16px;
+  margin-left: -17px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #3c2510 0%, #120a05 100%);
+  border: 1px solid rgba(189, 127, 63, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 4px 8px rgba(0, 0, 0, 0.45);
+  z-index: 1;
 }
 
-.machine-lever:active:not(:disabled) .machine-lever__assembly {
-  transform: translateY(20px) rotateZ(4deg) rotateX(10deg);
+.machine-handle[data-handle-phase='pressed'] .machine-handle__grip {
+  transform: scale(0.98);
 }
 
-.machine-lever--pulled .machine-lever__assembly {
-  animation: lever-pull-down var(--motion-spin-default) var(--ease-mechanical) forwards;
+.machine-handle[data-handle-phase='pressed'] .machine-handle__pivot-plate {
+  box-shadow:
+    0 10px 18px rgba(0, 0, 0, 0.62),
+    inset 0 2px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -10px 16px rgba(0, 0, 0, 0.5);
 }
 
-@keyframes lever-pull-down {
-  0% {
-    transform: translateY(0) rotateZ(0deg) rotateX(0deg);
-  }
-
-  35% {
-    transform: translateY(38px) rotateZ(6deg) rotateX(16deg);
-  }
-
-  60% {
-    transform: translateY(30px) rotateZ(5deg) rotateX(12deg);
-  }
-
-  100% {
-    transform: translateY(34px) rotateZ(5deg) rotateX(14deg);
-  }
+.machine-handle--spinning .machine-handle__lever {
+  transform: rotate(32deg);
 }
 
 .reel-row {

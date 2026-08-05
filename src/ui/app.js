@@ -1,6 +1,7 @@
 // Application bootstrap and event wiring — Slot Management UI §2–§7.
-// Updated: 2026-08-05 — lever pull + reel spin sound effects wiring.
+// Updated: 2026-08-05 — mechanical handle wiring + sequenced spin sounds.
 
+import { countDrawableSlots } from '../data/spin.js';
 import {
   addOption,
   clearForceSelect,
@@ -39,7 +40,8 @@ import { getDeleteSlotMessage, shouldConfirmSlotDelete } from './slot-actions.js
 import { runSpinAnimation } from './spin-controller.js';
 import { openGatedLaunch } from './launch-gate.js';
 import { toPresentationModeUrl } from './slides-url.js';
-import { playLeverPullSound, playSpinSelectSound, stopSpinSelectSound } from './sound.js';
+import { wireMachineHandle } from './machine-handle.js';
+import { startSpinSoundSequence, stopSpinSoundSequence } from './sound.js';
 import {
   captureScrollState,
   flushDeferredRender,
@@ -121,6 +123,14 @@ function doRender(next = {}) {
 
   renderAppShell(getState(), uiState);
 
+  const session = getState();
+  const unfrozenDrawable = countDrawableSlots(session.slots, false);
+  wireMachineHandle({
+    onPull: () => runAnimatedSpin(false),
+    disabled: spinInProgress || unfrozenDrawable === 0,
+    spinning: spinInProgress,
+  });
+
   restoreScrollState(scrollState);
 
   uiState.focusSlotTitleId = null;
@@ -149,11 +159,10 @@ async function runAnimatedSpin(includeFrozen) {
   const spinDrawLabels = Object.fromEntries(plan.draws.map((draw) => [draw.slotId, draw.label]));
   scheduleRender({ spinningSlotIds: activeSpinningSlotIds, spinDrawLabels, spinError: null });
 
-  playLeverPullSound();
-  playSpinSelectSound();
+  startSpinSoundSequence();
 
   await runSpinAnimation(plan.draws, (draws) => {
-    stopSpinSelectSound();
+    stopSpinSoundSequence();
 
     try {
       commitSpinDraws(draws);

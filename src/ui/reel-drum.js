@@ -1,7 +1,8 @@
 // Vertical reel drum markup and transform-based spin animation — checklist §5.2.
-// Updated: 2026-08-05 — gated spin masking, token-driven timing, frozen pulse.
+// Updated: 2026-08-05 — fixed 2.6s spin sequence timing from sound module.
 
 import { REVEAL_MODES } from '../data/constants.js';
+import { SPIN_SEQUENCE_MS } from './sound.js';
 
 /** @typedef {{ prev: string, center: string, next: string }} ReelDrumCells */
 
@@ -187,6 +188,27 @@ export function pulseFrozenReels(spinningSlotIds) {
 }
 
 /**
+ * @param {number} drawCount
+ * @param {number} [staggerMs]
+ * @returns {ReturnType<typeof readReelMotionTokens>}
+ */
+export function computeSpinMotion(drawCount, staggerMs = 120) {
+  const motion = readReelMotionTokens();
+  const count = Math.max(1, drawCount);
+  const settlePad = 40;
+  const travelMs = Math.max(
+    900,
+    SPIN_SEQUENCE_MS - settlePad - (count - 1) * staggerMs,
+  );
+
+  return {
+    ...motion,
+    staggerMs,
+    travelMs,
+  };
+}
+
+/**
  * @param {import('../data/spin.js').SpinDraw[]} draws
  * @returns {Promise<void>}
  */
@@ -201,7 +223,7 @@ export function playReelDrumSequence(draws) {
 
   pulseFrozenReels(draws.map((draw) => draw.slotId));
 
-  const motion = readReelMotionTokens();
+  const motion = computeSpinMotion(draws.length);
   const animations = draws.map((draw, index) =>
     animateReelDrum(draw.slotId, index * motion.staggerMs, motion),
   );

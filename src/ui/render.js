@@ -1,8 +1,9 @@
 // DOM rendering for slot management UI — checklist §2–§7.
-// Updated: 2026-08-05 — round 2 polish: click-to-force-select popup, revert control, bigger rails/lever, themed accents.
+// Updated: 2026-08-05 — mechanical handle markup + click-to-force-select popup.
 
 import { countDrawableSlots } from '../data/spin.js';
 import { getForcedSlotTitles, isForcedRoundResult, resolveHistorySlotTitle } from './history-display.js';
+import { renderMachineHandleMarkup } from './machine-handle.js';
 import { renderReelDrumViewport } from './reel-drum.js';
 import { getReelDisplayState } from './reveal.js';
 
@@ -215,8 +216,7 @@ function formatRoundTime(timestamp) {
 
 /** @param {import('../data/types.js').Slot[]} slots */
 function renderMachineHousing(slots, uiState, spinControls) {
-  const leverDisabled = spinControls.spinUnfrozenDisabled ? 'disabled' : '';
-  const pulledClass = spinControls.spinLocked ? ' machine-lever--pulled' : '';
+  const handleDisabled = spinControls.spinUnfrozenDisabled || spinControls.spinLocked;
 
   return `
     <section class="machine-housing surface-gold-frame" aria-label="Slot machine">
@@ -227,20 +227,7 @@ function renderMachineHousing(slots, uiState, spinControls) {
             ${slots.map((slot, index) => renderReelCard(slot, index, uiState, spinControls.spinLocked)).join('')}
           </div>
         </div>
-        <button
-          type="button"
-          class="machine-lever${pulledClass}"
-          data-action="spin-unfrozen"
-          aria-label="Pull lever to spin unfrozen slots"
-          ${leverDisabled}
-        >
-          <span class="machine-lever__track" aria-hidden="true"></span>
-          <span class="machine-lever__assembly" aria-hidden="true">
-            <span class="machine-lever__arm"></span>
-            <span class="machine-lever__knob"></span>
-          </span>
-          <span class="machine-lever__base" aria-hidden="true"></span>
-        </button>
+        ${renderMachineHandleMarkup({ disabled: handleDisabled, spinning: spinControls.spinLocked })}
       </div>
       ${renderSpinControls(spinControls)}
     </section>
