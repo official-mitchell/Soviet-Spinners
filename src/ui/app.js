@@ -1,5 +1,5 @@
 // Application bootstrap and event wiring — Slot Management UI §2–§7.
-// Updated: 2026-08-06 — reel drum label fit after render and on resize.
+// Updated: 2026-08-06 — live reel option edits, reset eliminated options handler.
 
 import { countDrawableSlots } from '../data/spin.js';
 import {
@@ -19,6 +19,7 @@ import {
   planSpin,
   reorderOptions,
   reorderSlots,
+  resetEliminatedOptions,
   revealSlot,
   setSlotFrozen,
   setSlotEliminateOnSpin,
@@ -49,6 +50,8 @@ import { runSpinAnimation } from './spin-controller.js';
 import { openGatedLaunch } from './launch-gate.js';
 import { toPresentationModeUrl } from './slides-url.js';
 import { wireMachineHandle } from './machine-handle.js';
+import { getReelDrumCells } from './reel-drum.js';
+import { getReelDisplayState } from './reveal.js';
 import { startSpinSoundSequence, stopSpinSoundSequence } from './sound.js';
 import {
   captureScrollState,
@@ -507,6 +510,70 @@ function syncReelHeaderTitle(slotId, title) {
 
 /**
  * @param {string} slotId
+ * @param {string} optionId
+ * @param {string} draftLabel
+ */
+function syncReelOptionLabel(slotId, optionId, draftLabel) {
+  const slot = getState().slots.find((entry) => entry.id === slotId);
+  if (!slot) {
+    return;
+  }
+
+  const virtualSlot = {
+    ...slot,
+    options: slot.options.map((option) =>
+      option.id === optionId ? { ...option, label: draftLabel } : option,
+    ),
+    currentResult:
+      slot.currentResult?.optionId === optionId
+        ? { ...slot.currentResult, label: draftLabel }
+        : slot.currentResult,
+  };
+
+  const display = getReelDisplayState(virtualSlot);
+  const cells = getReelDrumCells(virtualSlot, display);
+  const drum = document.querySelector(`[data-reel-drum="${slotId}"]`);
+
+  if (drum instanceof HTMLElement) {
+    const labels = drum.querySelectorAll('.reel-drum__cell-label');
+    const values = [cells.prev, cells.center, cells.next];
+    labels.forEach((element, index) => {
+      if (values[index] !== undefined) {
+        element.textContent = values[index];
+      }
+    });
+    requestAnimationFrame(() => {
+      fitReelDrumLabels(drum);
+    });
+  }
+
+  const forceSelectOption = document.querySelector(
+    `.force-select-popup__option[data-slot-id="${slotId}"][data-option-id="${optionId}"]`,
+  );
+  if (forceSelectOption) {
+    forceSelectOption.textContent = draftLabel;
+  }
+}
+
+/**
+ * @param {string} slotId
+ */
+function handleResetEliminatedOptions(slotId) {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  const slot = getState().slots.find((entry) => entry.id === slotId);
+  if (!slot || (slot.eliminatedOptions?.length ?? 0) === 0) {
+    return;
+  }
+
+  resetEliminatedOptions(slotId);
+  scheduleRender();
+}
+
+/**
+ * @param {string} slotId
  * @param {string} title
  */
 function handleSlotTitleChange(slotId, title) {
@@ -827,6 +894,14 @@ function bindEvents() {
       syncReelHeaderTitle(target.dataset.slotId, target.value);
     }
 
+    if (target.dataset.action === 'commit-option-edit') {
+      const slotId = target.dataset.slotId;
+      const optionId = target.dataset.optionId;
+      if (slotId && optionId) {
+        syncReelOptionLabel(slotId, optionId, target.value);
+      }
+    }
+
     if (target.dataset.action === 'manual-csv-input' && target.dataset.slotId) {
       uiState.manualCsvDrafts = {
         ...uiState.manualCsvDrafts,
@@ -880,6 +955,11 @@ function bindEvents() {
       case 'clear-slot-options':
         if (slotId) {
           handleClearSlotOptions(slotId);
+        }
+        break;
+      case 'reset-eliminated-options':
+        if (slotId) {
+          handleResetEliminatedOptions(slotId);
         }
         break;
       case 'toggle-slot-actions-menu':

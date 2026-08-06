@@ -1,5 +1,5 @@
 // DOM rendering for slot management UI — checklist §2–§7.
-// Updated: 2026-08-05 — clickable option links, eliminated link icons, edit layout fix.
+// Updated: 2026-08-06 — Import Options label, Reset eliminated button, centered stat cards.
 
 import { countDrawableSlots } from '../data/spin.js';
 import { getForcedSlotTitles, isForcedRoundResult, resolveHistorySlotTitle } from './history-display.js';
@@ -442,6 +442,8 @@ function renderSlotEditor(slot, index, uiState = {}, spinLocked = false) {
       : 'slot-editor__link-input slot-editor__link-input--hidden';
   const showManualCsv = uiState.openManualCsvSlotId === slot.id;
   const manualCsvValue = uiState.manualCsvDrafts?.[slot.id] ?? '';
+  const eliminatedCount = slot.eliminatedOptions?.length ?? 0;
+  const resetDisabled = eliminatedCount === 0 || spinLocked;
 
   return `
     <article class="slot-editor ${accentClass}" data-slot-id="${slot.id}">
@@ -488,8 +490,17 @@ function renderSlotEditor(slot, index, uiState = {}, spinLocked = false) {
               : ''
           }
           <div class="slot-editor__import-wrap">
+            <button
+              type="button"
+              class="btn btn--secondary btn--reset-eliminated"
+              data-action="reset-eliminated-options"
+              data-slot-id="${slot.id}"
+              ${resetDisabled ? 'disabled' : ''}
+            >
+              Reset
+            </button>
             <button type="button" class="btn btn--secondary btn--import" data-action="toggle-import-menu" data-slot-id="${slot.id}" ${lockedAttr}>
-              Import CSV
+              Import Options
             </button>
           </div>
         </div>
@@ -875,7 +886,7 @@ export function renderImportMenu(slotId) {
   const menu = document.createElement('div');
   menu.className = 'slot-editor__import-menu';
   menu.innerHTML = `
-    <button type="button" class="slot-editor__import-item" data-action="import-csv-single" data-slot-id="${slotId}">Import CSV</button>
+    <button type="button" class="slot-editor__import-item" data-action="import-csv-single" data-slot-id="${slotId}">Import Options</button>
     <button type="button" class="slot-editor__import-item" data-action="import-csv-links" data-slot-id="${slotId}">Import manually formatted CSV</button>
   `;
   wrap.appendChild(menu);

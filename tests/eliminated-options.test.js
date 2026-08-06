@@ -12,6 +12,7 @@ import {
   forceSelect,
   getState,
   loadSession,
+  resetEliminatedOptions,
   setStorageBackend,
   setSlotEliminateOnSpin,
   spinUnfrozen,
@@ -83,6 +84,26 @@ describe('Eliminated options', () => {
     assert.equal(state.slots.find((entry) => entry.id === slotA.id)?.eliminatedOptions?.length, 1);
     assert.equal(state.slots.find((entry) => entry.id === slotB.id)?.eliminatedOptions?.length, 1);
     assert.equal(state.slots.find((entry) => entry.id === slotB.id)?.options.length, 1);
+  });
+
+  it('resetEliminatedOptions restores eliminated options to the active pool', () => {
+    const slot = getState().slots[0];
+    addOption(slot.id, 'Alpha');
+    addOption(slot.id, 'Beta');
+    setSlotEliminateOnSpin(slot.id, true);
+    spinUnfrozen();
+
+    const afterSpin = getState().slots[0];
+    assert.equal(afterSpin.options.length, 1);
+    assert.equal(afterSpin.eliminatedOptions?.length, 1);
+
+    resetEliminatedOptions(slot.id);
+
+    const restored = getState().slots[0];
+    assert.equal(restored.options.length, 2);
+    assert.equal(restored.eliminatedOptions?.length, 0);
+    assert.ok(restored.options.some((option) => option.label === 'Alpha'));
+    assert.ok(restored.options.some((option) => option.label === 'Beta'));
   });
 });
 

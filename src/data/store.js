@@ -1,5 +1,5 @@
 // Session store: Slot/option CRUD, CSV import, spin mechanics, and localStorage persistence.
-// Updated: 2026-08-05 — update links on eliminated options too.
+// Updated: 2026-08-06 — reset eliminated options; sync currentResult label on option edit.
 
 import { DEFAULT_SLOT_TITLE, REVEAL_MODES } from './constants.js';
 import {
@@ -209,8 +209,37 @@ export function updateOption(slotId, optionId, label, url) {
   }
 
   state.slots[slotIndex].options[optionIndex] = next;
+
+  const slot = state.slots[slotIndex];
+  if (slot.currentResult?.optionId === optionId) {
+    slot.currentResult = {
+      ...slot.currentResult,
+      label: trimmed,
+    };
+  }
+
   saveSession();
   return structuredClone(next);
+}
+
+/**
+ * @param {string} slotId
+ */
+export function resetEliminatedOptions(slotId) {
+  const index = requireSlot(slotId);
+  const slot = state.slots[index];
+  const eliminated = slot.eliminatedOptions ?? [];
+
+  if (eliminated.length === 0) {
+    return;
+  }
+
+  state.slots[index] = {
+    ...slot,
+    options: [...slot.options, ...eliminated],
+    eliminatedOptions: [],
+  };
+  saveSession();
 }
 
 /**

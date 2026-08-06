@@ -63,6 +63,7 @@ export {
   setSlotEliminateOnSpin,
   setSlotLinksMode,
   clearSlotOptions,
+  resetEliminatedOptions,
   updateOptionLink,
   importLinkCsvOptions,
   revealSlot,
