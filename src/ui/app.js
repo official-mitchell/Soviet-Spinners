@@ -1,5 +1,5 @@
 // Application bootstrap and event wiring — Slot Management UI §2–§7.
-// Updated: 2026-08-05 — spin link results popup and clickable option links.
+// Updated: 2026-08-06 — reel drum label fit after render and on resize.
 
 import { countDrawableSlots } from '../data/spin.js';
 import {
@@ -56,6 +56,7 @@ import {
   restoreScrollState,
   shouldDeferRender,
 } from './edit-state.js';
+import { fitReelDrumLabels, initReelLabelFit } from './reel-label-fit.js';
 
 /** @type {{ focusSlotTitleId: string | null, focusAddOptionSlotId: string | null, focusAddLinkSlotId: string | null, focusManualCsvSlotId: string | null, openManualCsvSlotId: string | null, manualCsvDrafts: Record<string, string>, importSummaries: Record<string, import('../data/types.js').CsvImportSummary>, spinningSlotIds: string[], spinLocked: boolean, spinError: string | null, activeView: 'slots' | 'history', spinDrawLabels: Record<string, string> }} */
 const uiState = {
@@ -142,6 +143,9 @@ function doRender(next = {}) {
   uiState.spinError = spinErrorMessage;
 
   renderAppShell(getState(), uiState);
+  requestAnimationFrame(() => {
+    fitReelDrumLabels();
+  });
 
   const session = getState();
   const unfrozenDrawable = countDrawableSlots(session.slots, false);
@@ -1320,6 +1324,7 @@ export function initApp() {
   }
 
   initModal(modalRoot);
+  initReelLabelFit();
   loadSession();
   bindEvents();
   scheduleRender();

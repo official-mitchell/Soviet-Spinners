@@ -769,8 +769,10 @@
 .reel-drum__cell-label {
   position: relative;
   z-index: 1;
+  display: block;
   max-width: 100%;
   line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .reel-drum__cell::before {

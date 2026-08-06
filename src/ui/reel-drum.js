@@ -1,7 +1,8 @@
 // Vertical reel drum markup and transform-based spin animation — checklist §5.2.
-// Updated: 2026-08-05 — cell label span for gradient text rendering.
+// Updated: 2026-08-06 — fit oversized option labels after spin settles.
 
 import { REVEAL_MODES } from '../data/constants.js';
+import { fitReelDrumLabels } from './reel-label-fit.js';
 import { SPIN_SEQUENCE_MS } from './sound.js';
 
 /** @typedef {{ prev: string, center: string, next: string }} ReelDrumCells */
@@ -274,6 +275,11 @@ function animateReelDrum(slotId, delayMs, motion) {
         strip.style.filter = 'blur(0)';
         drum?.classList.remove('reel-drum--spinning');
         drum?.classList.add('reel-drum--settled');
+        if (drum instanceof HTMLElement) {
+          requestAnimationFrame(() => {
+            fitReelDrumLabels(drum);
+          });
+        }
       }, settleAt);
 
       window.setTimeout(() => {
