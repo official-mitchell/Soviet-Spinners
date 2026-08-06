@@ -1,5 +1,5 @@
 /* App layout and components — Soviet Spinners §2–§7 visual system */
-/* Updated: 2026-08-06 — reel marker triangles layer behind centered option text */
+/* Updated: 2026-08-06 — idle reel triangles inside selected cell between background and label */
 
 .app-shell {
   display: grid;
@@ -725,7 +725,7 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 3;
+  z-index: 1;
   background:
     linear-gradient(
       180deg,
@@ -741,8 +741,6 @@
 }
 
 .reel-drum__strip {
-  position: relative;
-  z-index: 2;
   will-change: transform, filter;
 }
 
@@ -808,7 +806,13 @@
 .reel-drum__cell--selected {
   opacity: 1;
   font-size: var(--type-reel-result);
+}
+
+.reel-drum__cell--selected .reel-drum__marker-triangle {
+  position: absolute;
+  top: 50%;
   z-index: 1;
+  pointer-events: none;
 }
 
 .reel-drum__cell--selected .reel-drum__cell-label {
@@ -875,14 +879,17 @@
 }
 
 .reel-drum__cell--selected::before {
+  z-index: 0;
   background: linear-gradient(
     180deg,
     var(--red-400) 0%,
     var(--red-600) 42%,
     var(--red-800) 100%
   );
-  border-color: rgba(255, 246, 215, 0.18);
+  border-color: var(--border-gold-highlight);
   box-shadow:
+    inset 0 2px 0 var(--border-gold-highlight),
+    inset 0 -2px 0 var(--border-gold-highlight),
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     inset 0 -12px 20px rgba(0, 0, 0, 0.3),
     0 0 18px rgba(215, 38, 46, 0.28),
@@ -935,7 +942,7 @@
 .reel-drum__marker {
   position: absolute;
   inset: calc(50% - var(--reel-cell-height) / 2) var(--space-3) auto;
-  z-index: 1;
+  z-index: 2;
   height: var(--reel-cell-height);
   border-top: 2px solid var(--border-gold-highlight);
   border-bottom: 2px solid var(--border-gold-highlight);

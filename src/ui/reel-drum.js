@@ -1,5 +1,5 @@
 // Vertical reel drum markup and transform-based spin animation — checklist §5.2.
-// Updated: 2026-08-06 — fit oversized option labels after spin settles.
+// Updated: 2026-08-06 — idle triangles inside selected cell; rotating preview neighbors on shuffle.
 
 import { REVEAL_MODES } from '../data/constants.js';
 import { fitReelDrumLabels } from './reel-label-fit.js';
@@ -45,6 +45,28 @@ function parseCssMs(raw, fallback) {
 }
 
 /**
+ * @param {string[]} labels
+ * @param {number} index
+ */
+function pickLabelAt(labels, index) {
+  if (labels.length === 0) {
+    return '—';
+  }
+
+  return labels[index % labels.length];
+}
+
+/**
+ * @param {import('../data/types.js').Slot} slot
+ * @param {string} centerLabel
+ */
+function buildNeighborPool(slot, centerLabel) {
+  return slot.options
+    .map((option) => option.label)
+    .filter((label) => label !== centerLabel);
+}
+
+/**
  * @param {import('../data/types.js').Slot} slot
  * @param {import('./reveal.js').ReelDisplayState} display
  * @returns {ReelDrumCells}
@@ -60,11 +82,13 @@ export function getReelDrumCells(slot, display) {
 
   if (display.kind === 'result' || display.kind === 'preview') {
     const center = display.text;
-    const pool = slot.options.map((option) => option.label).filter((label) => label !== center);
+    const pool = buildNeighborPool(slot, center);
+    const offset = slot.previewOffset ?? 0;
+
     return {
-      prev: pool[0] ?? '—',
+      prev: pickLabelAt(pool, offset),
       center,
-      next: pool[1] ?? pool[0] ?? '—',
+      next: pickLabelAt(pool, offset + 1),
     };
   }
 
@@ -108,6 +132,13 @@ export function buildSpinStripLabels(slot, targetLabel) {
   return strip;
 }
 
+function renderCellTriangles() {
+  return `
+    <span class="reel-drum__marker-triangle reel-drum__marker-triangle--left" aria-hidden="true"></span>
+    <span class="reel-drum__marker-triangle reel-drum__marker-triangle--right" aria-hidden="true"></span>
+  `;
+}
+
 /**
  * @param {string} label
  * @param {DrumCellVariant} [variant]
@@ -115,7 +146,8 @@ export function buildSpinStripLabels(slot, targetLabel) {
  */
 function renderDrumCell(label, variant = 'preview', options = {}) {
   const forcedClass = options.forced ? ' reel-drum__cell--forced' : '';
-  return `<div class="reel-drum__cell reel-drum__cell--${variant}${forcedClass}"><span class="reel-drum__cell-label">${escapeHtml(label)}</span></div>`;
+  const triangles = variant === 'selected' ? renderCellTriangles() : '';
+  return `<div class="reel-drum__cell reel-drum__cell--${variant}${forcedClass}">${triangles}<span class="reel-drum__cell-label">${escapeHtml(label)}</span></div>`;
 }
 
 function renderDrumMarker() {
@@ -169,7 +201,6 @@ export function renderReelDrumViewport(slot, display, spinning, spinTargetLabel)
           ${renderDrumCell(cells.center, centerVariant, { forced: display.forced })}
           ${renderDrumCell(cells.next, 'preview')}
         </div>
-        ${renderDrumMarker()}
       </div>
     </div>
   `;

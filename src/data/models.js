@@ -1,5 +1,5 @@
 // Entity factories, default session shape, and normalization on load.
-// Updated: 2026-08-05 — per-slot linksMode flag and optional option URLs.
+// Updated: 2026-08-06 — per-slot previewOffset for reel neighbor rotation on shuffle.
 
 import {
   DEFAULT_SLOT_TITLE,
@@ -158,8 +158,22 @@ function normalizeSlot(raw, index) {
         ? REVEAL_MODES.GATED
         : REVEAL_MODES.IMMEDIATE,
     order: typeof slot.order === 'number' ? slot.order : index,
+    previewOffset: normalizePreviewOffset(slot.previewOffset),
     currentResult: normalizeSlotResult(slot.currentResult),
   };
+}
+
+/**
+ * @param {unknown} raw
+ * @returns {number}
+ */
+function normalizePreviewOffset(raw) {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.floor(parsed));
 }
 
 /**

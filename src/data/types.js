@@ -32,6 +32,7 @@
  * @property {boolean} linksMode
  * @property {RevealMode} revealMode
  * @property {number} order
+ * @property {number} [previewOffset]
  * @property {SlotResult | null} [currentResult]
  */
 

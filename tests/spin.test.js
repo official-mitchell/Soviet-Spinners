@@ -97,6 +97,7 @@ describe('Spin mechanics (§4.1–§4.2)', () => {
     const labelsAfter = updated.options.map((option) => option.label).sort();
     assert.deepEqual(labelsAfter, labelsBefore);
     assert.equal(updated.currentResult, undefined);
+    assert.equal(updated.previewOffset, 1);
   });
 
   it('forceSelect sets result, removes option from pool, and logs forced slot id', () => {

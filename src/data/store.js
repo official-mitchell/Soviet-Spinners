@@ -1,5 +1,5 @@
 // Session store: Slot/option CRUD, CSV import, spin mechanics, and localStorage persistence.
-// Updated: 2026-08-06 — reset eliminated options; sync currentResult label on option edit.
+// Updated: 2026-08-06 — shuffle advances reel preview offset for neighbor rotation.
 
 import { DEFAULT_SLOT_TITLE, REVEAL_MODES } from './constants.js';
 import {
@@ -457,10 +457,20 @@ export function updateOptionLink(slotId, optionId, url) {
 }
 
 export function shuffleAll() {
-  state.slots = state.slots.map((slot) => ({
-    ...slot,
-    options: shuffleArray(slot.options),
-  }));
+  state.slots = state.slots.map((slot) => {
+    const labels = slot.options.map((option) => option.label);
+    const centerLabel = slot.currentResult?.label ?? labels[0] ?? '';
+    const neighborCount = Math.max(
+      1,
+      labels.filter((label) => label !== centerLabel).length,
+    );
+
+    return {
+      ...slot,
+      options: shuffleArray(slot.options),
+      previewOffset: ((slot.previewOffset ?? 0) + 1) % neighborCount,
+    };
+  });
   saveSession();
 }
 

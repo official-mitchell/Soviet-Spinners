@@ -1,5 +1,5 @@
 // Unit tests for reel drum display helpers — checklist §5.2.
-// Updated: 2026-08-05 — gated spin masking coverage.
+// Updated: 2026-08-06 — previewOffset neighbor rotation coverage.
 
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
@@ -41,6 +41,26 @@ describe('Reel drum (§5.2)', () => {
     assert.equal(cells.center, 'Beta');
     assert.notEqual(cells.prev, cells.center);
     assert.notEqual(cells.next, cells.center);
+  });
+
+  it('previewOffset rotates neighbor labels while keeping the center fixed', () => {
+    const slot = makeSlot({
+      previewOffset: 0,
+      currentResult: {
+        optionId: 'b',
+        label: 'Beta',
+        forced: false,
+        revealed: true,
+      },
+    });
+    const display = getReelDisplayState(slot);
+    const initial = getReelDrumCells(slot, display);
+    const rotated = getReelDrumCells({ ...slot, previewOffset: 1 }, display);
+
+    assert.equal(initial.center, 'Beta');
+    assert.equal(rotated.center, 'Beta');
+    assert.notEqual(initial.prev, rotated.prev);
+    assert.notEqual(initial.next, rotated.next);
   });
 
   it('gated prompt drum hides option labels in center copy', () => {
