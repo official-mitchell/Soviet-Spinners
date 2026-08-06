@@ -1,5 +1,5 @@
 // Application bootstrap and event wiring — Slot Management UI §2–§7.
-// Updated: 2026-08-06 — live reel option edits, reset eliminated options handler.
+// Updated: 2026-08-06 — mobile nav menu, slot editor carousel navigation.
 
 import { countDrawableSlots } from '../data/spin.js';
 import {
@@ -61,7 +61,7 @@ import {
 } from './edit-state.js';
 import { fitReelDrumLabels, initReelLabelFit } from './reel-label-fit.js';
 
-/** @type {{ focusSlotTitleId: string | null, focusAddOptionSlotId: string | null, focusAddLinkSlotId: string | null, focusManualCsvSlotId: string | null, openManualCsvSlotId: string | null, manualCsvDrafts: Record<string, string>, importSummaries: Record<string, import('../data/types.js').CsvImportSummary>, spinningSlotIds: string[], spinLocked: boolean, spinError: string | null, activeView: 'slots' | 'history', spinDrawLabels: Record<string, string> }} */
+/** @type {{ focusSlotTitleId: string | null, focusAddOptionSlotId: string | null, focusAddLinkSlotId: string | null, focusManualCsvSlotId: string | null, openManualCsvSlotId: string | null, manualCsvDrafts: Record<string, string>, importSummaries: Record<string, import('../data/types.js').CsvImportSummary>, spinningSlotIds: string[], spinLocked: boolean, spinError: string | null, activeView: 'slots' | 'history', spinDrawLabels: Record<string, string>, editorSlotIndex: number, navMenuOpen: boolean }} */
 const uiState = {
   focusSlotTitleId: null,
   focusAddOptionSlotId: null,
@@ -75,6 +75,8 @@ const uiState = {
   spinError: null,
   activeView: 'slots',
   spinDrawLabels: {},
+  editorSlotIndex: 0,
+  navMenuOpen: false,
 };
 
 /** @type {boolean} */
@@ -140,17 +142,32 @@ function doRender(next = {}) {
   if (next.spinDrawLabels) {
     uiState.spinDrawLabels = next.spinDrawLabels;
   }
+  if ('editorSlotIndex' in next) {
+    uiState.editorSlotIndex = next.editorSlotIndex ?? 0;
+  }
+  if ('navMenuOpen' in next) {
+    uiState.navMenuOpen = Boolean(next.navMenuOpen);
+  }
+
+  const session = getState();
+  const slotCount = session.slots.length;
+  if (slotCount === 0) {
+    uiState.editorSlotIndex = 0;
+  } else if (uiState.editorSlotIndex >= slotCount) {
+    uiState.editorSlotIndex = slotCount - 1;
+  } else if (uiState.editorSlotIndex < 0) {
+    uiState.editorSlotIndex = 0;
+  }
 
   uiState.spinLocked = spinInProgress;
   uiState.spinningSlotIds = spinInProgress ? [...activeSpinningSlotIds] : [];
   uiState.spinError = spinErrorMessage;
 
-  renderAppShell(getState(), uiState);
+  renderAppShell(session, uiState);
   requestAnimationFrame(() => {
     fitReelDrumLabels();
   });
 
-  const session = getState();
   const unfrozenDrawable = countDrawableSlots(session.slots, false);
   wireMachineHandle({
     onPull: () => runAnimatedSpin(false),
@@ -289,7 +306,42 @@ function handleNavView(view) {
   }
 
   uiState.activeView = view;
-  scheduleRender({ activeView: view });
+  scheduleRender({ activeView: view, navMenuOpen: false });
+}
+
+function handleToggleNavMenu() {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  scheduleRender({ navMenuOpen: !uiState.navMenuOpen });
+}
+
+function handleEditorPrevSlot() {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  const nextIndex = Math.max(0, uiState.editorSlotIndex - 1);
+  if (nextIndex === uiState.editorSlotIndex) {
+    return;
+  }
+
+  scheduleRender({ editorSlotIndex: nextIndex });
+}
+
+function handleEditorNextSlot() {
+  if (isSpinLocked()) {
+    return;
+  }
+
+  const slotCount = getState().slots.length;
+  const nextIndex = Math.min(slotCount - 1, uiState.editorSlotIndex + 1);
+  if (nextIndex === uiState.editorSlotIndex) {
+    return;
+  }
+
+  scheduleRender({ editorSlotIndex: nextIndex });
 }
 
 function handleShuffleAll() {
@@ -458,7 +510,12 @@ function handleAddSlot() {
   }
 
   const slot = createSlot();
-  scheduleRender({ focusSlotTitleId: slot.id });
+  const slots = getState().slots;
+  const newIndex = slots.findIndex((entry) => entry.id === slot.id);
+  scheduleRender({
+    focusSlotTitleId: slot.id,
+    editorSlotIndex: newIndex >= 0 ? newIndex : slots.length - 1,
+  });
 }
 
 /**
@@ -926,6 +983,9 @@ function bindEvents() {
       closeAllSlotActionMenus();
       closeAllImportMenus();
       closeAllForceSelectPopups();
+      if (uiState.navMenuOpen && !target.closest('.sidebar')) {
+        scheduleRender({ navMenuOpen: false });
+      }
       return;
     }
 
@@ -1103,6 +1163,15 @@ function bindEvents() {
         break;
       case 'nav-history':
         handleNavView('history');
+        break;
+      case 'toggle-nav-menu':
+        handleToggleNavMenu();
+        break;
+      case 'editor-prev-slot':
+        handleEditorPrevSlot();
+        break;
+      case 'editor-next-slot':
+        handleEditorNextSlot();
         break;
       case 'edit-option':
         if (slotId && optionId) {

@@ -1,5 +1,5 @@
 // DOM rendering for slot management UI — checklist §2–§7.
-// Updated: 2026-08-06 — Import Options label, Reset eliminated button, centered stat cards.
+// Updated: 2026-08-06 — mobile nav hamburger, spin control stack, single-slot editor carousel.
 
 import { countDrawableSlots } from '../data/spin.js';
 import { getForcedSlotTitles, isForcedRoundResult, resolveHistorySlotTitle } from './history-display.js';
@@ -34,6 +34,8 @@ function slotAccentClass(index, prefix) {
  * @param {string | null} [uiState.spinError]
  * @param {'slots' | 'history'} [uiState.activeView]
  * @param {Record<string, string>} [uiState.spinDrawLabels]
+ * @param {number} [uiState.editorSlotIndex]
+ * @param {boolean} [uiState.navMenuOpen]
  */
 export function renderAppShell(session, uiState = {}) {
   const app = document.getElementById('app');
@@ -57,7 +59,7 @@ export function renderAppShell(session, uiState = {}) {
   };
 
   app.innerHTML = `
-    ${renderSidebar(activeView)}
+    ${renderSidebar(activeView, Boolean(uiState.navMenuOpen))}
     <main class="main">
       ${renderPageHeader(activeView)}
       ${
@@ -75,18 +77,37 @@ export function renderAppShell(session, uiState = {}) {
   applyPostRenderFocus(uiState);
 }
 
-/** @param {'slots' | 'history'} activeView */
-function renderSidebar(activeView) {
+/**
+ * @param {'slots' | 'history'} activeView
+ * @param {boolean} navMenuOpen
+ */
+function renderSidebar(activeView, navMenuOpen = false) {
+  const navOpenClass = navMenuOpen ? ' sidebar__nav--open' : '';
+  const toggleExpanded = navMenuOpen ? 'true' : 'false';
+  const toggleLabel = navMenuOpen ? 'Close menu' : 'Open menu';
+
   return `
     <aside class="sidebar surface-metal surface-gold-frame" aria-label="Primary navigation">
-      <button type="button" class="wordmark" data-action="nav-slots" aria-label="Soviet Spinners home">
-        <span class="wordmark__logo-frame">
-          <img class="wordmark__logo" src="${LOGO_SRC}" width="164" height="96" alt="Soviet Spinners" />
-        </span>
-      </button>
-      <nav>
+      <div class="sidebar__bar">
+        <button type="button" class="wordmark" data-action="nav-slots" aria-label="Soviet Spinners home">
+          <span class="wordmark__logo-frame">
+            <img class="wordmark__logo" src="${LOGO_SRC}" width="164" height="96" alt="Soviet Spinners" />
+          </span>
+        </button>
+        <button
+          type="button"
+          class="sidebar__menu-toggle"
+          data-action="toggle-nav-menu"
+          aria-expanded="${toggleExpanded}"
+          aria-controls="primary-nav"
+          aria-label="${toggleLabel}"
+        >
+          <span class="sidebar__menu-icon" aria-hidden="true"></span>
+        </button>
+      </div>
+      <nav id="primary-nav" class="sidebar__nav${navOpenClass}">
         <ul class="nav-list">
-          <li>${renderNavItem('slots', '▣', 'SLOTS', activeView)}</li>
+          <li>${renderNavItem('slots', '▣', 'SLOTS', activeView, false, 'GAME')}</li>
           <li>${renderNavItem('history', '◷', 'HISTORY', activeView)}</li>
         </ul>
       </nav>
@@ -100,8 +121,9 @@ function renderSidebar(activeView) {
  * @param {string} label
  * @param {'slots' | 'history'} activeView
  * @param {boolean} [stubOnly]
+ * @param {string} [mobileLabel]
  */
-function renderNavItem(view, icon, label, activeView, stubOnly = false) {
+function renderNavItem(view, icon, label, activeView, stubOnly = false, mobileLabel = label) {
   const isActive = !stubOnly && activeView === view;
   const activeClass = isActive ? ' nav-item--active' : '';
   const disabled = stubOnly ? 'disabled' : '';
@@ -110,7 +132,8 @@ function renderNavItem(view, icon, label, activeView, stubOnly = false) {
   return `
     <button type="button" class="nav-item${activeClass}" ${action} ${disabled}>
       <span class="nav-item__icon" aria-hidden="true">${icon}</span>
-      <span>${label}</span>
+      <span class="nav-item__label nav-item__label--desktop">${label}</span>
+      <span class="nav-item__label nav-item__label--mobile">${mobileLabel}</span>
     </button>
   `;
 }
@@ -271,18 +294,20 @@ function renderSpinControls(spinControls) {
 
   return `
     <div class="spin-controls">
-      <button type="button" class="btn btn--secondary btn--gold-action btn--shuffle" data-action="shuffle-all" ${shuffleAttr}>
-        <span class="btn__icon btn__icon--gold" aria-hidden="true">🔀</span>
-        <span class="btn--gold-action__label">Shuffle all</span>
-      </button>
       <button type="button" class="btn btn--spin surface-red-enamel${spinReadyClass}" data-action="spin-unfrozen" ${spinUnfrozenAttr}>
         <span class="btn--spin__icon" aria-hidden="true">★</span>
         <span class="btn--spin__label">Spin slots</span>
       </button>
-      <button type="button" class="btn btn--secondary btn--gold-action btn--surprise" data-action="surprise-me" ${surpriseAttr}>
-        <span class="btn__icon btn__icon--gold" aria-hidden="true">🎲</span>
-        <span class="btn--gold-action__label">Surprise me</span>
-      </button>
+      <div class="spin-controls__secondary">
+        <button type="button" class="btn btn--secondary btn--gold-action btn--shuffle" data-action="shuffle-all" ${shuffleAttr}>
+          <span class="btn__icon btn__icon--gold" aria-hidden="true">🔀</span>
+          <span class="btn--gold-action__label">Shuffle all</span>
+        </button>
+        <button type="button" class="btn btn--secondary btn--gold-action btn--surprise" data-action="surprise-me" ${surpriseAttr}>
+          <span class="btn__icon btn__icon--gold" aria-hidden="true">🎲</span>
+          <span class="btn--gold-action__label">Surprise me</span>
+        </button>
+      </div>
     </div>
   `;
 }
@@ -291,6 +316,16 @@ function renderSpinControls(spinControls) {
 function renderEditorSection(slots, uiState, spinLocked) {
   const lockedClass = spinLocked ? ' editor-section--locked' : '';
   const lockedAttr = spinLocked ? 'disabled' : '';
+  const activeIndex = Math.min(
+    Math.max(uiState.editorSlotIndex ?? 0, 0),
+    Math.max(slots.length - 1, 0),
+  );
+  const activeSlot = slots[activeIndex];
+  const prevDisabled = activeIndex <= 0 || slots.length <= 1;
+  const nextDisabled = activeIndex >= slots.length - 1 || slots.length <= 1;
+  const carouselIndicator = activeSlot
+    ? `${escapeHtml(activeSlot.title)} <span class="slot-editor-carousel__count">(${activeIndex + 1} of ${slots.length})</span>`
+    : 'No slots yet';
 
   return `
     <section class="editor-section${lockedClass}" aria-label="Edit slots and options">
@@ -305,9 +340,32 @@ function renderEditorSection(slots, uiState, spinLocked) {
           <span>Add slot</span>
         </button>
       </div>
-      <div class="slot-editors" id="slot-editors">
-        ${slots.map((slot, index) => renderSlotEditor(slot, index, uiState, spinLocked)).join('')}
-        ${renderAddSlotCard(spinLocked)}
+      <div class="slot-editor-carousel">
+        <div class="slot-editor-carousel__header" aria-label="Browse slot editors">
+          <button
+            type="button"
+            class="slot-editor-carousel__nav slot-editor-carousel__nav--prev"
+            data-action="editor-prev-slot"
+            aria-label="Previous slot"
+            ${prevDisabled ? 'disabled' : ''}
+          >‹</button>
+          <p class="slot-editor-carousel__indicator">${carouselIndicator}</p>
+          <button
+            type="button"
+            class="slot-editor-carousel__nav slot-editor-carousel__nav--next"
+            data-action="editor-next-slot"
+            aria-label="Next slot"
+            ${nextDisabled ? 'disabled' : ''}
+          >›</button>
+        </div>
+        <div class="slot-editors" id="slot-editors">
+          ${slots
+            .map((slot, index) =>
+              renderSlotEditor(slot, index, uiState, spinLocked, index === activeIndex),
+            )
+            .join('')}
+          ${renderAddSlotCard(spinLocked)}
+        </div>
       </div>
     </section>
   `;
@@ -430,9 +488,10 @@ function renderReelCard(slot, index, uiState = {}, spinLocked = false) {
  * @param {import('../data/types.js').CsvImportSummary} [importSummary]
  * @param {boolean} [spinLocked]
  */
-function renderSlotEditor(slot, index, uiState = {}, spinLocked = false) {
+function renderSlotEditor(slot, index, uiState = {}, spinLocked = false, isCarouselActive = false) {
   const importSummary = uiState.importSummaries?.[slot.id];
   const accentClass = ACCENT_CLASSES[index % ACCENT_CLASSES.length];
+  const activeClass = isCarouselActive ? ' slot-editor--active' : '';
   const lockedAttr = spinLocked ? 'disabled' : '';
   const dragEnabled = spinLocked ? 'false' : 'true';
   const showLinkInput = Boolean(slot.linksMode);
@@ -446,7 +505,7 @@ function renderSlotEditor(slot, index, uiState = {}, spinLocked = false) {
   const resetDisabled = eliminatedCount === 0 || spinLocked;
 
   return `
-    <article class="slot-editor ${accentClass}" data-slot-id="${slot.id}">
+    <article class="slot-editor ${accentClass}${activeClass}" data-slot-id="${slot.id}">
       <header class="slot-editor__header">
         <span class="slot-editor__drag" draggable="${dragEnabled}" data-action="drag-slot" data-slot-id="${slot.id}" aria-label="Reorder slot" title="Drag to reorder">⋮⋮</span>
         <div class="slot-editor__title-wrap">

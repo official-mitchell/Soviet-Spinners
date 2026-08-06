@@ -1,5 +1,5 @@
 /* App layout and components — Soviet Spinners §2–§7 visual system */
-/* Updated: 2026-08-06 — idle reel triangles inside selected cell between background and label */
+/* Updated: 2026-08-06 — mobile nav, machine viewport fit, editor carousel, stacked spin controls */
 
 .app-shell {
   display: grid;
@@ -19,6 +19,21 @@
   padding: var(--space-4);
   box-shadow: var(--shadow-panel), var(--glow-gold);
   position: relative;
+}
+
+.sidebar__bar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-4);
+}
+
+.sidebar__menu-toggle {
+  display: none;
+}
+
+.sidebar__nav {
+  flex: 1;
 }
 
 .sidebar::after {
@@ -96,6 +111,10 @@
   text-align: center;
   color: var(--icon-gold);
   text-shadow: 0 0 10px rgba(248, 231, 173, 0.35);
+}
+
+.nav-item__label--mobile {
+  display: none;
 }
 
 .nav-item:hover:not(:disabled) {
@@ -1104,7 +1123,16 @@
   flex-wrap: wrap;
   gap: var(--space-3);
   justify-content: center;
+  align-items: center;
   margin-top: var(--space-5);
+}
+
+.spin-controls__secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: center;
+  align-items: center;
 }
 
 .btn--spin {
@@ -1313,6 +1341,55 @@
   gap: var(--space-4);
   overflow-x: auto;
   padding-bottom: var(--space-2);
+}
+
+.slot-editor-carousel__header {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.slot-editor-carousel__indicator {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-gold);
+}
+
+.slot-editor-carousel__count {
+  color: var(--text-muted);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.slot-editor-carousel__nav {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: var(--border-hairline) solid var(--border-gold);
+  border-radius: var(--radius-sm);
+  background: var(--bg-control);
+  color: var(--text-gold);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--ease-standard);
+}
+
+.slot-editor-carousel__nav:hover:not(:disabled) {
+  background: var(--bg-control-hover);
+}
+
+.slot-editor-carousel__nav:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .slot-editor {
@@ -2408,6 +2485,24 @@
   text-decoration: none;
 }
 
+@media (min-width: 769px) {
+  .spin-controls__secondary {
+    display: contents;
+  }
+
+  .btn--shuffle {
+    order: 1;
+  }
+
+  .btn--spin {
+    order: 2;
+  }
+
+  .btn--surprise {
+    order: 3;
+  }
+}
+
 @media (min-width: 1440px) {
   .app-shell {
     min-width: 1440px;
@@ -2435,5 +2530,328 @@
 
   .nav-item span {
     display: none;
+  }
+
+  .nav-item__icon {
+    display: inline-block;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --reel-viewport-height: clamp(160px, 32dvh, 240px);
+    --reel-cell-height: clamp(64px, 13dvh, 88px);
+    --machine-min-height: 0;
+  }
+
+  .app-shell {
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    max-width: none;
+  }
+
+  .sidebar {
+    flex-direction: column;
+    padding: var(--space-2) var(--space-3);
+    z-index: 20;
+    position: relative;
+  }
+
+  .sidebar__bar {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
+  .wordmark {
+    width: auto;
+    margin: 0;
+    flex: 0 1 auto;
+  }
+
+  .wordmark__logo-frame {
+    width: 120px;
+    height: 48px;
+  }
+
+  .wordmark__logo {
+    transform: scale(1.35);
+  }
+
+  .sidebar__menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: var(--border-hairline) solid var(--border-gold);
+    border-radius: var(--radius-sm);
+    background: var(--bg-control);
+    color: var(--text-gold);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .sidebar__menu-toggle:hover {
+    background: var(--bg-control-hover);
+  }
+
+  .sidebar__menu-icon,
+  .sidebar__menu-icon::before,
+  .sidebar__menu-icon::after {
+    display: block;
+    width: 20px;
+    height: 2px;
+    border-radius: 1px;
+    background: currentColor;
+    position: relative;
+  }
+
+  .sidebar__menu-icon::before,
+  .sidebar__menu-icon::after {
+    content: "";
+    position: absolute;
+    left: 0;
+  }
+
+  .sidebar__menu-icon::before {
+    top: -6px;
+  }
+
+  .sidebar__menu-icon::after {
+    top: 6px;
+  }
+
+  .sidebar__nav {
+    display: none;
+    position: absolute;
+    top: calc(100% + var(--space-2));
+    right: var(--space-3);
+    left: var(--space-3);
+    z-index: 30;
+    padding: var(--space-2);
+    border-radius: var(--radius-md);
+    background: var(--bg-panel);
+    border: var(--border-hairline) solid var(--border-gold);
+    box-shadow: var(--shadow-panel), var(--glow-gold);
+  }
+
+  .sidebar__nav--open {
+    display: block;
+  }
+
+  .nav-list {
+    gap: var(--space-1);
+  }
+
+  .nav-item span {
+    display: inline;
+  }
+
+  .nav-item__label--desktop {
+    display: none;
+  }
+
+  .nav-item__label--mobile {
+    display: inline;
+  }
+
+  .nav-item__icon {
+    display: inline-block;
+  }
+
+  .nav-item {
+    min-height: 48px;
+  }
+
+  .main {
+    gap: var(--space-4);
+    min-height: 0;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .page-header__title {
+    font-size: clamp(20px, 5vw, 28px);
+  }
+
+  .page-header__subtitle {
+    font-size: 13px;
+  }
+
+  .page-header__actions {
+    display: none;
+  }
+
+  .machine-housing {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: var(--space-3);
+    max-height: calc(100dvh - 88px);
+  }
+
+  .machine-housing__stage {
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .machine-handle {
+    display: none;
+  }
+
+  .machine-housing__reels {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-2);
+  }
+
+  .reel-row {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    align-items: stretch;
+  }
+
+  .reel-card {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .reel-card__viewport {
+    flex: 1 1 auto;
+    min-height: var(--reel-viewport-height);
+  }
+
+  .reel-card__controls {
+    flex-shrink: 0;
+    padding: var(--space-2);
+  }
+
+  .btn--freeze {
+    min-height: 40px;
+    width: 100%;
+  }
+
+  .spin-controls {
+    flex-direction: column;
+    align-items: stretch;
+    flex-shrink: 0;
+    margin-top: var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .btn--spin {
+    width: 100%;
+    min-width: 0;
+    min-height: 56px;
+  }
+
+  .spin-controls__secondary {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+  }
+
+  .btn--shuffle,
+  .btn--surprise {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .utility-rail {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .utility-rail__star {
+    display: none;
+  }
+
+  .stat-card {
+    flex: 1 1 120px;
+    padding: var(--space-3);
+  }
+
+  .stat-card__value {
+    font-size: 28px;
+  }
+
+  .stat-row {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  .utility-rail .btn--block {
+    flex: 1 1 calc(50% - var(--space-1));
+    min-width: 140px;
+  }
+
+  .utility-rail--history {
+    display: none;
+  }
+
+  .editor-section {
+    padding: var(--space-4);
+  }
+
+  .slot-editor-carousel__header {
+    display: flex;
+  }
+
+  .slot-editors {
+    display: block;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .slot-editor:not(.slot-editor--active) {
+    display: none;
+  }
+
+  .slot-editor--active {
+    display: flex;
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 280px;
+  }
+
+  .add-slot-card {
+    display: none;
+  }
+
+  .history-table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .history-table thead,
+  .history-table tbody,
+  .history-table tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
   }
 }
